@@ -17,6 +17,9 @@ void initStorageManager(){
  * This method checks if the file already exists, if yes it returns an error message.
  * Else, it creates a page file of size 1 where the entire page is filled with '\0' bytes.
  * It reserves the first page for storing the file page count, this is initialised to 1.
+ *
+ * If the file is successfully created it returns RC_OK,
+ * else it returns RC_FILE_ALREADY_EXISTS.
  * @param fileName
  * @return
  */
@@ -43,8 +46,18 @@ RC openPageFile (char *fileName, SM_FileHandle *fHandle){
     return NULL;
 }
 
-RC closePageFile (SM_FileHandle *fHandle){
-    return NULL;
+/**
+ * This method closes the file specified in the FileHandle.
+ * If the file is successfully closed it returns RC_OK,
+ * else it returns RC_FILE_NOT_FOUND.
+ * @param fileHandle
+ * @return
+ */
+RC closePageFile (SM_FileHandle *fileHandle){
+    if(!fclose(fileHandle->mgmtInfo)){
+        return RC_OK;
+    }
+    return RC_FILE_NOT_FOUND;
 }
 
 RC destroyPageFile (char *fileName){
