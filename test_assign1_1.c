@@ -61,10 +61,58 @@ void
 testSinglePageContent(void)
 {
   SM_FileHandle fh;
-  SM_PageHandle ph;
+  SM_PageHandle ph,ph1;
+  ph = (SM_PageHandle) malloc(PAGE_SIZE);
+  ph1 = (SM_PageHandle) malloc(PAGE_SIZE);
+
   int i;
 
   testName = "test single page content";
+  TEST_CHECK(createPageFile (TESTPF));
+  TEST_CHECK(openPageFile (TESTPF, &fh));
+
+  // read first page into handle
+  TEST_CHECK(readFirstBlock (&fh, ph));
+  // the page should be empty (zero bytes)
+  for (i=0; i < PAGE_SIZE; i++)
+  ASSERT_TRUE((ph[i] == 0), "expected zero byte in first page of freshly initialized page");
+  printf("first block was empty\n");
+
+
+
+
+  // change ph to be a string and write that one to disk
+  for (i=0; i < PAGE_SIZE; i++)
+  ph[i] = 'a';
+  TEST_CHECK(writeBlock (0, &fh, ph));
+  printf("writing first block\n");
+
+
+  TEST_CHECK(readFirstBlock (&fh, ph1));
+  for (i=0; i < PAGE_SIZE; i++)
+    ASSERT_TRUE((ph1[i] == 'a'), "character in page read from disk is the one we expected.");
+
+  fseek(fh.mgmtInfo,4096,SEEK_SET);
+
+
+  for (i=0; i < PAGE_SIZE; i++)
+    ph[i] = 'b';
+  TEST_CHECK(writeBlock (0, &fh, ph));
+  printf("writing first block\n");
+
+
+  TEST_CHECK(readFirstBlock (&fh, ph1));
+  for (i=0; i < PAGE_SIZE; i++)
+    ASSERT_TRUE((ph1[i] == 'b'), "character in page read from disk is the one we expected.");
+
+
+  TEST_CHECK(closePageFile (&fh));
+  TEST_CHECK(destroyPageFile (TESTPF));
+ // fseek(fh.mgmtInfo,4096,SEEK_SET);
+  //for (i=0; i < PAGE_SIZE; i++)
+    //ph1[i] = 'c';
+  //TEST_CHECK(writeBlock (0, &fh, ph1));
+  //TEST_CHECK(closePageFile (&fh));
 
   // create a new page file
   //TEST_CHECK(createPageFile (TESTPF));
