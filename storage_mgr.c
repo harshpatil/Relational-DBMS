@@ -1,6 +1,6 @@
-//
-// Created by Harshavardhan Patil on 9/23/16.
-//
+/*
+ * Created by Harshavardhan Patil on 9/23/16.
+ */
 // This file has implementation of all the interfaces mentioned in storage_mgr.h
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,7 +8,7 @@
 #include "storage_mgr.h"
 #include "dberror.h"
 
-#define CHECK_INIT_FILE(fileHandle)  \
+#define CHECK_FILE_VALIDITY(fileHandle)  \
 do{ \
   if(fileHandle == NULL || fileHandle->mgmtInfo == NULL){   \
    return  RC_FILE_HANDLE_NOT_INIT;   \
@@ -31,8 +31,7 @@ void initStorageManager(){
  */
 RC createPageFile (char *fileName){
 
-    if(fopen(fileName,"r") != NULL)
-    {
+    if(fopen(fileName,"r") != NULL){
         return RC_FILE_ALREADY_EXISTS;
     }
     FILE *filePointer = fopen(fileName, "w");
@@ -50,28 +49,25 @@ RC createPageFile (char *fileName){
 }
 
 
-RC openPageFile (char *fileName, SM_FileHandle *fHandle){
+RC openPageFile (char *fileName, SM_FileHandle *fileHandle){
 
     if(fopen(fileName,"r") == NULL)
     {
         printf("File does not exist !!");
         return RC_FILE_NOT_FOUND;
     }
-    else
-    {
-        FILE *filePointer = fopen(fileName, "r+");
-        char *readPage;
-        readPage = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
-        fgets(readPage, PAGE_SIZE, filePointer);
-        puts(readPage);
-        readPage = strtok(readPage, "\n");
-        fHandle->fileName = fileName;
-        fHandle->totalNumPages = atoi(readPage);
-        fHandle->curPagePos = 0;
-        fHandle->mgmtInfo = filePointer;
-        free(readPage);
-        return RC_OK;
-    }
+    FILE *filePointer = fopen(fileName, "r+");
+    char *readPage;
+    readPage = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
+    fgets(readPage, PAGE_SIZE, filePointer);
+    puts(readPage);
+    readPage = strtok(readPage, "\n");
+    fileHandle->fileName = fileName;
+    fileHandle->totalNumPages = atoi(readPage);
+    fileHandle->curPagePos = 0;
+    fileHandle->mgmtInfo = filePointer;
+    free(readPage);
+    return RC_OK;
 }
 
 /**
@@ -90,21 +86,14 @@ RC closePageFile (SM_FileHandle *fileHandle){
 
 RC destroyPageFile (char *fileName){
 
-    if(fopen(fileName,"r") == NULL)
-    {
-        printf("File does not exist !!");
-        return RC_FILE_NOT_FOUND;
-    }
-    else
-    {
-        printf("File exist so deleting!!");
-        remove(fileName);
+    if(!remove(fileName)){
         return RC_OK;
     }
+    return RC_FILE_NOT_FOUND;
 }
 
 RC readBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
-    return NULL;
+   return NULL;
 }
 
 int getBlockPos (SM_FileHandle *fHandle){
@@ -142,9 +131,8 @@ RC writeBlockData(int pageNum,SM_FileHandle *fileHandle, SM_PageHandle memPage) 
 }
 
 
-
 RC writeBlock (int pageNum, SM_FileHandle *fileHandle, SM_PageHandle memPage){
-    CHECK_INIT_FILE(fileHandle);
+    CHECK_FILE_VALIDITY(fileHandle);
     if(pageNum > fileHandle -> totalNumPages || pageNum < 0){
         return RC_WRITE_FAILED;
     }
@@ -169,11 +157,36 @@ RC writeCurrentBlock (SM_FileHandle *fileHandle, SM_PageHandle memPage){
     return writeBlock(fileHandle -> curPagePos,fileHandle,memPage);
 }
 
-RC appendEmptyBlock (SM_FileHandle *fHandle){
-    return NULL;
+RC appendEmptyBlock (SM_FileHandle *fileHandle){
+
+    CHECK_FILE_VALIDITY(fileHandle);
+
+    if(fseek(fileHandle->mgmtInfo,(fileHandle->totalNumPages +1)*PAGE_SIZE*PAGE_ELEMENT_SIZE ,SEEK_SET)==0){
+
+        SM_PageHandle pageHandle;
+        pageHandle = (char *) calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
+        writeBlockData(fileHandle->totalNumPages,fileHandle,pageHandle);
+        fileHandle->totalNumPages = fileHandle->totalNumPages + 1;
+        FILE *filePointer = fopen(fileHandle->fileName, "w");
+        strcat(fileHandle->totalNumPages,"1\n");
+        fwrite(fileHandle->totalNumPages, PAGE_ELEMENT_SIZE, PAGE_SIZE, filePointer);
+        free(filePointer);
+        free(pageHandle);
+        return RC_OK;
+    }
+    return RC_WRITE_FAILED;
 }
 
-RC ensureCapacity (int numberOfPages, SM_FileHandle *fHandle){
-    return NULL;
+RC ensureCapacity (int numberOfPages, SM_FileHandle *fileHandle){
+
+    CHECK_FILE_VALIDITY(fileHandle);
+    if(fileHandle->totalNumPages == numberOfPages || fileHandle->totalNumPages > numberOfPages){
+        return RC_OK;
+    }
+    int pagesToBeAdded = numberOfPages - fileHandle->totalNumPages;
+    for(int i=0; i<pagesToBeAdded; i++){
+        appendEmptyBlock(fileHandle);
+    }
+    return RC_OK;
 }
 
