@@ -6,6 +6,10 @@
 /* module wide constants */
 #define PAGE_SIZE 4096
 
+/* Size of each element in the page file */
+#define PAGE_ELEMENT_SIZE 1
+
+
 /* return code definitions */
 typedef int RC;
 
@@ -14,6 +18,8 @@ typedef int RC;
 #define RC_FILE_HANDLE_NOT_INIT 2
 #define RC_WRITE_FAILED 3
 #define RC_READ_NON_EXISTING_PAGE 4
+#define RC_FILE_ALREADY_EXISTS 5
+
 
 #define RC_RM_COMPARE_VALUE_OF_DIFFERENT_DATATYPE 200
 #define RC_RM_EXPR_RESULT_IS_NOT_BOOLEAN 201
