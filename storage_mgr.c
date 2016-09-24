@@ -92,10 +92,37 @@ RC readLastBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
     return NULL;
 }
 
-RC writeBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
-  return NULL;
+
+RC writeBlockData(int pageNum,SM_FileHandle *fileHandle, SM_PageHandle memPage) {
+    if(fwrite(memPage, PAGE_ELEMENT_SIZE, PAGE_SIZE, fileHandle->mgmtInfo) != PAGE_SIZE*PAGE_ELEMENT_SIZE){
+        return RC_WRITE_FAILED;
+    }else{
+        fileHandle -> curPagePos = pageNum;
+        return RC_OK;
+    }
 }
 
+
+
+RC writeBlock (int pageNum, SM_FileHandle *fileHandle, SM_PageHandle memPage){
+    if(fileHandle == NULL || fileHandle->mgmtInfo == NULL){
+        return  RC_FILE_HANDLE_NOT_INIT;
+    }
+    if(pageNum >= fileHandle -> totalNumPages || pageNum < 0){
+        return RC_WRITE_FAILED;
+    }
+    long curFilePos = ftell(fileHandle -> mgmtInfo);
+    long newFilePos = (pageNum+1)*PAGE_SIZE*PAGE_ELEMENT_SIZE;
+    if( curFilePos == newFilePos){
+       return writeBlockData(pageNum,fileHandle,memPage);
+    }else{
+         if(fseek(fileHandle -> mgmtInfo,(pageNum+1)*PAGE_SIZE*PAGE_ELEMENT_SIZE,SEEK_SET)==0){
+             return writeBlockData(pageNum,fileHandle,memPage)
+         }else{
+             return RC_WRITE_FAILED;
+         }
+    }
+}
 
 RC writeCurrentBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
     return NULL;
