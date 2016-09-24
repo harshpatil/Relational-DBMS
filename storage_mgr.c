@@ -8,6 +8,12 @@
 #include "storage_mgr.h"
 #include "dberror.h"
 
+#define CHECK_INIT_FILE(fileHandle)  \
+do{ \
+  if(fileHandle == NULL || fileHandle->mgmtInfo == NULL){   \
+   return  RC_FILE_HANDLE_NOT_INIT;   \
+  } \
+}while(0);
 
 void initStorageManager(){
 
@@ -29,20 +35,18 @@ RC createPageFile (char *fileName){
     {
         return RC_FILE_ALREADY_EXISTS;
     }
-    else
-    {
-        FILE *filePointer = fopen(fileName, "w");
-        char *totalPages, *firstPage;
-        totalPages = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
-        firstPage = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
-        strcpy(totalPages,"1\n");
-        fwrite(totalPages, PAGE_ELEMENT_SIZE, PAGE_SIZE, filePointer);
-        fwrite(firstPage, PAGE_ELEMENT_SIZE, PAGE_SIZE, filePointer);
-        free(totalPages);
-        free(firstPage);
-        fclose(filePointer);
-        return RC_OK;
-    }
+    FILE *filePointer = fopen(fileName, "w");
+    char *totalPages, *firstPage;
+    totalPages = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
+    firstPage = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
+    strcpy(totalPages,"1\n");
+    fwrite(totalPages, PAGE_ELEMENT_SIZE, PAGE_SIZE, filePointer);
+    fwrite(firstPage, PAGE_ELEMENT_SIZE, PAGE_SIZE, filePointer);
+    free(totalPages);
+    free(firstPage);
+    fclose(filePointer);
+    return RC_OK;
+
 }
 
 
@@ -142,27 +146,31 @@ RC writeBlockData(int pageNum,SM_FileHandle *fileHandle, SM_PageHandle memPage) 
 
 
 RC writeBlock (int pageNum, SM_FileHandle *fileHandle, SM_PageHandle memPage){
-    if(fileHandle == NULL || fileHandle->mgmtInfo == NULL){
-        return  RC_FILE_HANDLE_NOT_INIT;
-    }
-    if(pageNum >= fileHandle -> totalNumPages || pageNum < 0){
+    CHECK_INIT_FILE(fileHandle);
+    if(pageNum > fileHandle -> totalNumPages || pageNum < 0){
         return RC_WRITE_FAILED;
+    }
+    if(pageNum == fileHandle -> totalNumPages){
+        int retVal = appendEmptyBlock(fileHandle);
+        if(retVal != RC_OK){
+            return retVal;
+        }
     }
     long curFilePos = ftell(fileHandle -> mgmtInfo);
     long newFilePos = (pageNum+1)*PAGE_SIZE*PAGE_ELEMENT_SIZE;
     if( curFilePos == newFilePos){
        return writeBlockData(pageNum,fileHandle,memPage);
     }else{
-         if(fseek(fileHandle -> mgmtInfo,(pageNum+1)*PAGE_SIZE*PAGE_ELEMENT_SIZE,SEEK_SET)==0){
-             return writeBlockData(pageNum,fileHandle,memPage)
+         if(fseek(fileHandle -> mgmtInfo,newFilePos,SEEK_SET)==0){
+             return writeBlockData(pageNum,fileHandle,memPage);
          }else{
              return RC_WRITE_FAILED;
          }
     }
 }
 
-RC writeCurrentBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
-    return NULL;
+RC writeCurrentBlock (SM_FileHandle *fileHandle, SM_PageHandle memPage){
+    return writeBlock(fileHandle -> curPagePos,fileHandle,memPage);
 }
 
 RC appendEmptyBlock (SM_FileHandle *fHandle){
