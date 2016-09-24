@@ -4,6 +4,7 @@
 // This file has implementation of all the interfaces mentioned in storage_mgr.h
 #include <stdio.h>
 #include <stdlib.h>
+#include <memory.h>
 #include "storage_mgr.h"
 #include "dberror.h"
 
@@ -19,35 +20,58 @@ void initStorageManager(){
  * @return
  */
 RC createPageFile (char *fileName){
-    if(fopen(fileName,"r") != NULL){
+
+    if(fopen(fileName,"r") != NULL)
+    {
         return RC_FILE_ALREADY_EXISTS;
-    }else{
+    }
+    else
+    {
         FILE *filePointer = fopen(fileName, "w");
         char *totalPages, *firstPage;
-        printf("%d  first \n",totalPages);
+
         totalPages = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
-        printf("%d second \n",totalPages);
 
         firstPage = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
-      //  totalPages = "1\n";
-        printf("%d %s third \n",totalPages,*totalPages);
+        strcpy(totalPages,"1\n");
 
         fwrite(totalPages, PAGE_ELEMENT_SIZE, PAGE_SIZE, filePointer);
         fwrite(firstPage, PAGE_ELEMENT_SIZE, PAGE_SIZE, filePointer);
-        printf("%d fourth \n",totalPages);
+
 
         free(totalPages);
         free(firstPage);
 
         fclose(filePointer);
         return RC_OK;
-
     }
 }
 
 
 RC openPageFile (char *fileName, SM_FileHandle *fHandle){
-    return NULL;
+
+    if(fopen(fileName,"r") == NULL)
+    {
+        printf("File does not exist !!");
+        return RC_FILE_NOT_FOUND;
+    }
+    else
+    {
+        FILE *filePointer = fopen(fileName, "r+");
+        char *readPage;
+        readPage = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
+        fgets(readPage, PAGE_SIZE, filePointer);
+        puts(readPage);
+        readPage = strtok(readPage, "\n");
+        fHandle->fileName = fileName;
+        fHandle->totalNumPages = atoi(readPage);
+        fHandle->curPagePos = 0;
+        fHandle->mgmtInfo = filePointer;
+
+        free(readPage);
+        fclose(filePointer);
+        return RC_OK;
+    }
 }
 
 RC closePageFile (SM_FileHandle *fHandle){
@@ -55,7 +79,18 @@ RC closePageFile (SM_FileHandle *fHandle){
 }
 
 RC destroyPageFile (char *fileName){
-    return NULL;
+
+    if(fopen(fileName,"r") == NULL)
+    {
+        printf("File does not exist !!");
+        return RC_FILE_NOT_FOUND;
+    }
+    else
+    {
+        printf("File exist so deleting!!");
+        remove(fileName);
+        return RC_OK;
+    }
 }
 
 RC readBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
