@@ -1,6 +1,6 @@
-//
-// Created by Harshavardhan Patil on 9/23/16.
-//
+/*
+ * Created by Harshavardhan Patil on 9/23/16.
+ */
 // This file has implementation of all the interfaces mentioned in storage_mgr.h
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,12 +25,10 @@ void initStorageManager(){
  */
 RC createPageFile (char *fileName){
 
-    if(fopen(fileName,"r") != NULL)
-    {
+    if(fopen(fileName,"r") != NULL){
         return RC_FILE_ALREADY_EXISTS;
     }
-    else
-    {
+    else{
         FILE *filePointer = fopen(fileName, "w");
         char *totalPages, *firstPage;
         totalPages = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
@@ -45,27 +43,23 @@ RC createPageFile (char *fileName){
     }
 }
 
-
 RC openPageFile (char *fileName, SM_FileHandle *fHandle){
 
-    if(fopen(fileName,"r") == NULL)
-    {
+    if(fopen(fileName,"r") == NULL) {
+
         printf("File does not exist !!");
         return RC_FILE_NOT_FOUND;
     }
-    else
-    {
+    else{
         FILE *filePointer = fopen(fileName, "r+");
         char *readPage;
         readPage = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
         fgets(readPage, PAGE_SIZE, filePointer);
-        puts(readPage);
         readPage = strtok(readPage, "\n");
         fHandle->fileName = fileName;
         fHandle->totalNumPages = atoi(readPage);
         fHandle->curPagePos = 0;
         fHandle->mgmtInfo = filePointer;
-
         free(readPage);
         fclose(filePointer);
         return RC_OK;
@@ -80,6 +74,7 @@ RC openPageFile (char *fileName, SM_FileHandle *fHandle){
  * @return
  */
 RC closePageFile (SM_FileHandle *fileHandle){
+
     if(!fclose(fileHandle->mgmtInfo)){
         return RC_OK;
     }
@@ -88,17 +83,10 @@ RC closePageFile (SM_FileHandle *fileHandle){
 
 RC destroyPageFile (char *fileName){
 
-    if(fopen(fileName,"r") == NULL)
-    {
-        printf("File does not exist !!");
-        return RC_FILE_NOT_FOUND;
-    }
-    else
-    {
-        printf("File exist so deleting!!");
-        remove(fileName);
+    if(!remove(fileName)){
         return RC_OK;
     }
+    return RC_FILE_NOT_FOUND;
 }
 
 RC readBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
@@ -132,7 +120,6 @@ RC readLastBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
 RC writeBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
   return NULL;
 }
-
 
 RC writeCurrentBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
     return NULL;
