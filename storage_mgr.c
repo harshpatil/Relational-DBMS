@@ -4,6 +4,7 @@
 // This file has implementation of all the interfaces mentioned in storage_mgr.h
 #include <stdio.h>
 #include <stdlib.h>
+#include <memory.h>
 #include "storage_mgr.h"
 #include "dberror.h"
 
@@ -13,8 +14,9 @@ void initStorageManager(){
 }
 
 /**
- * This method create a page file with name "fileName"
- *
+ * This method checks if the file already exists, if yes it returns an error message.
+ * Else, it creates a page file of size 1 where the entire page is filled with '\0' bytes.
+ * It reserves the first page for storing the file page count, this is initialised to 1.
  * @param fileName
  * @return
  */
@@ -24,24 +26,15 @@ RC createPageFile (char *fileName){
     }else{
         FILE *filePointer = fopen(fileName, "w");
         char *totalPages, *firstPage;
-        printf("%d  first \n",totalPages);
         totalPages = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
-        printf("%d second \n",totalPages);
-
         firstPage = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
-      //  totalPages = "1\n";
-        printf("%d %s third \n",totalPages,*totalPages);
-
+        strcpy(totalPages,"1\n");
         fwrite(totalPages, PAGE_ELEMENT_SIZE, PAGE_SIZE, filePointer);
         fwrite(firstPage, PAGE_ELEMENT_SIZE, PAGE_SIZE, filePointer);
-        printf("%d fourth \n",totalPages);
-
         free(totalPages);
         free(firstPage);
-
         fclose(filePointer);
         return RC_OK;
-
     }
 }
 
