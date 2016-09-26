@@ -51,8 +51,7 @@ RC createPageFile (char *fileName){
 
 RC openPageFile (char *fileName, SM_FileHandle *fileHandle){
 
-    if(fopen(fileName,"r") == NULL)
-    {
+    if(fopen(fileName,"r") == NULL) {
         printf("File does not exist !!");
         return RC_FILE_NOT_FOUND;
     }
@@ -60,7 +59,6 @@ RC openPageFile (char *fileName, SM_FileHandle *fileHandle){
     char *readPage;
     readPage = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
     fgets(readPage, PAGE_SIZE, filePointer);
-    puts(readPage);
     readPage = strtok(readPage, "\n");
     fileHandle->fileName = fileName;
     fileHandle->totalNumPages = atoi(readPage);
@@ -92,8 +90,38 @@ RC destroyPageFile (char *fileName){
     return RC_FILE_NOT_FOUND;
 }
 
+/*
+ *This function reads a page numbered with pageNum into memPage.
+ *It first checks if the page number is valid or not.
+ *If valid, it checks if the file pointer is available or not.
+ *With valid file pointer, it reads the given page and current page position is increased.
+ */
 RC readBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
-   return NULL;
+
+    int seekSuccess;
+    size_t readBlockSize;
+
+    /* checks for the valid page number */
+    if (pageNum > fHandle->totalNumPages /*|| pageNum < 0*/){
+        return RC_READ_NON_EXISTING_PAGE;
+    }
+
+    /* checks if file is open, and pointer is available */
+    if (fHandle->mgmtInfo == NULL){
+        return RC_FILE_NOT_FOUND;
+    }
+
+    seekSuccess = fseek(fHandle->mgmtInfo, (pageNum+1)*PAGE_SIZE*sizeof(char), SEEK_SET);
+
+    /* checks if the file seek was successful. If yes, reads the file page into mempage. */
+    if (seekSuccess == 0){
+        readBlockSize = fread(memPage, sizeof(char), PAGE_SIZE, fHandle->mgmtInfo);
+        fHandle->curPagePos = pageNum;
+        return RC_OK;
+    }
+    else{
+        return RC_READ_NON_EXISTING_PAGE;
+    }
 }
 
 int getBlockPos (SM_FileHandle *fHandle){
@@ -137,7 +165,7 @@ RC writeBlock (int pageNum, SM_FileHandle *fileHandle, SM_PageHandle memPage){
         return RC_WRITE_FAILED;
     }
     if(pageNum == fileHandle -> totalNumPages){
-        int retVal = appendEmptyBlock(fileHandle);
+        RC retVal = appendEmptyBlock(fileHandle);
         if(retVal != RC_OK){
             return retVal;
         }
@@ -161,16 +189,16 @@ RC appendEmptyBlock (SM_FileHandle *fileHandle){
 
     CHECK_FILE_VALIDITY(fileHandle);
 
-    if(fseek(fileHandle->mgmtInfo,(fileHandle->totalNumPages +1)*PAGE_SIZE*PAGE_ELEMENT_SIZE ,SEEK_SET)==0){
+    int newPagePos = fileHandle->totalNumPages +1;
+    if(fseek(fileHandle->mgmtInfo,newPagePos*PAGE_SIZE*PAGE_ELEMENT_SIZE ,SEEK_SET)==0){
 
-        SM_PageHandle pageHandle;
-        pageHandle = (char *) calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
+        SM_PageHandle pageHandle = (char *) calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
         writeBlockData(fileHandle->totalNumPages,fileHandle,pageHandle);
         fileHandle->totalNumPages = fileHandle->totalNumPages + 1;
-        FILE *filePointer = fopen(fileHandle->fileName, "w");
-        strcat(fileHandle->totalNumPages,"1\n");
-        fwrite(fileHandle->totalNumPages, PAGE_ELEMENT_SIZE, PAGE_SIZE, filePointer);
-        free(filePointer);
+        rewind(fileHandle->mgmtInfo);
+        fprintf(fileHandle->mgmtInfo,"%d\n",fileHandle->totalNumPages);
+        fseek(fileHandle->mgmtInfo,(fileHandle->totalNumPages)*PAGE_SIZE*PAGE_ELEMENT_SIZE ,SEEK_SET);
+        fflush(fileHandle->mgmtInfo);
         free(pageHandle);
         return RC_OK;
     }
@@ -180,12 +208,15 @@ RC appendEmptyBlock (SM_FileHandle *fileHandle){
 RC ensureCapacity (int numberOfPages, SM_FileHandle *fileHandle){
 
     CHECK_FILE_VALIDITY(fileHandle);
-    if(fileHandle->totalNumPages == numberOfPages || fileHandle->totalNumPages > numberOfPages){
+    if(fileHandle->totalNumPages >= numberOfPages){
         return RC_OK;
     }
     int pagesToBeAdded = numberOfPages - fileHandle->totalNumPages;
     for(int i=0; i<pagesToBeAdded; i++){
-        appendEmptyBlock(fileHandle);
+       RC ret_val = appendEmptyBlock(fileHandle);
+        if(ret_val != RC_OK){
+            return ret_val;
+        }
     }
     return RC_OK;
 }

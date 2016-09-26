@@ -18,18 +18,17 @@ static void testCreateOpenClose(void);
 static void testSinglePageContent(void);
 
 /* main function running all tests */
-int
-main (void)
-{
-  testName = "";
-  
-  initStorageManager();
-
-  //testCreateOpenClose();
- testSinglePageContent();
-
-  return 0;
-}
+//int main (void)
+//{
+//  testName = "";
+//
+//  initStorageManager();
+//
+//  //testCreateOpenClose();
+// testSinglePageContent();
+//
+//  return 0;
+//}
 
 
 /* check a return code. If it is not RC_OK then output a message, error description, and exit */
