@@ -48,7 +48,16 @@ RC createPageFile (char *fileName){
 
 }
 
-
+/**
+ * This method opens the file in read write mode if the file exists else throws an error.
+ * It also initiliases SM_FileHandle with details such as totalNumPages, curPagePos, mgmtInfo and fileName of the
+ * file passed
+ *
+ * This methoD returns RC_OK on success and RC_FILE_NOT_FOUND on failure.
+ * @param fileName
+ * @param fileHandle
+ * @return
+ */
 RC openPageFile (char *fileName, SM_FileHandle *fileHandle){
 
     if(fopen(fileName,"r") == NULL) {
@@ -70,6 +79,8 @@ RC openPageFile (char *fileName, SM_FileHandle *fileHandle){
 
 /**
  * This method closes the file specified in the FileHandle.
+ * It also de-initialises SM_FileHandle object.
+ *
  * If the file is successfully closed it returns RC_OK,
  * else it returns RC_FILE_NOT_FOUND.
  * @param fileHandle
@@ -82,6 +93,14 @@ RC closePageFile (SM_FileHandle *fileHandle){
     return RC_FILE_NOT_FOUND;
 }
 
+/**
+ * This method removes the file specified from the system.
+ *
+ * If the file is successfully removed it returns RC_OK,
+ * else it returns RC_FILE_NOT_FOUND.
+ * @param fileName
+ * @return
+ */
 RC destroyPageFile (char *fileName){
 
     if(!remove(fileName)){
@@ -90,42 +109,18 @@ RC destroyPageFile (char *fileName){
     return RC_FILE_NOT_FOUND;
 }
 
-/*
- *This function reads a page numbered with pageNum into memPage.
- *It first checks if the page number is valid or not.
- *If valid, it checks if the file pointer is available or not.
- *With valid file pointer, it reads the given page and current page position is increased.
- */
 RC readBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
-
-    int seekSuccess;
-    size_t readBlockSize;
-
-    /* checks for the valid page number */
-    if (pageNum > fHandle->totalNumPages /*|| pageNum < 0*/){
-        return RC_READ_NON_EXISTING_PAGE;
-    }
-
-    /* checks if file is open, and pointer is available */
-    if (fHandle->mgmtInfo == NULL){
-        return RC_FILE_NOT_FOUND;
-    }
-
-    seekSuccess = fseek(fHandle->mgmtInfo, (pageNum+1)*PAGE_SIZE*sizeof(char), SEEK_SET);
-
-    /* checks if the file seek was successful. If yes, reads the file page into mempage. */
-    if (seekSuccess == 0){
-        readBlockSize = fread(memPage, sizeof(char), PAGE_SIZE, fHandle->mgmtInfo);
-        fHandle->curPagePos = pageNum;
-        return RC_OK;
-    }
-    else{
-        return RC_READ_NON_EXISTING_PAGE;
-    }
+   return NULL;
 }
 
+/**
+ * Returns the curPagePos of the file specified by fileHandle.
+ * @param fHandle
+ * @return
+ */
 int getBlockPos (SM_FileHandle *fHandle){
-    return NULL;
+    CHECK_FILE_VALIDITY(fHandle);
+    return fHandle->curPagePos;
 }
 
 RC readFirstBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
@@ -148,7 +143,13 @@ RC readLastBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
     return NULL;
 }
 
-
+/**
+ * This method
+ * @param pageNum
+ * @param fileHandle
+ * @param memPage
+ * @return
+ */
 RC writeBlockData(int pageNum,SM_FileHandle *fileHandle, SM_PageHandle memPage) {
     if(fwrite(memPage, PAGE_ELEMENT_SIZE, PAGE_SIZE, fileHandle->mgmtInfo) != PAGE_SIZE*PAGE_ELEMENT_SIZE){
         return RC_WRITE_FAILED;
