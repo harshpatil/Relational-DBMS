@@ -98,7 +98,30 @@ RC destroyPageFile (char *fileName){
  */
 RC readBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
 
-    return NULL;
+    int seekSuccess;
+    size_t readBlockSize;
+
+    /* checks for the valid page number */
+    if (pageNum > fHandle->totalNumPages){
+        return RC_READ_NON_EXISTING_PAGE;
+    }
+
+    /* checks if file is open, and pointer is available */
+    if (fHandle->mgmtInfo == NULL){
+        return RC_FILE_NOT_FOUND;
+    }
+
+    seekSuccess = fseek(fHandle->mgmtInfo, (pageNum+1)*PAGE_SIZE*sizeof(char), SEEK_SET);
+
+    /* checks if the file seek was successful. If yes, reads the file page into mempage. */
+    if (seekSuccess == 0){
+        readBlockSize = fread(memPage, sizeof(char), PAGE_SIZE, fHandle->mgmtInfo);
+        fHandle->curPagePos = pageNum;
+        return RC_OK;
+    }
+    else{
+        return RC_READ_NON_EXISTING_PAGE;
+    }
 }
 
 int getBlockPos (SM_FileHandle *fHandle){
@@ -137,6 +160,8 @@ RC writeBlockData(int pageNum,SM_FileHandle *fileHandle, SM_PageHandle memPage) 
 
 
 RC writeBlock (int pageNum, SM_FileHandle *fileHandle, SM_PageHandle memPage){
+
+
     CHECK_FILE_VALIDITY(fileHandle);
     if(pageNum > fileHandle -> totalNumPages || pageNum < 0){
         return RC_WRITE_FAILED;
@@ -147,7 +172,8 @@ RC writeBlock (int pageNum, SM_FileHandle *fileHandle, SM_PageHandle memPage){
             return retVal;
         }
     }
-    long curFilePos = ftell(fileHandle -> mgmtInfo);
+    long curFilePos = ftell
+            (fileHandle -> mgmtInfo);
     long newFilePos = (pageNum+1)*PAGE_SIZE*PAGE_ELEMENT_SIZE;
     if( curFilePos == newFilePos){
        return writeBlockData(pageNum,fileHandle,memPage);
