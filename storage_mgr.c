@@ -113,6 +113,7 @@ RC readBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
    return NULL;
 }
 
+
 /**
  * Returns the curPagePos of the file specified by fileHandle.
  * @param fHandle
