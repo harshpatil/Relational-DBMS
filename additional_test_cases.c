@@ -160,9 +160,9 @@ void testWriteBlockAtAHigherPage(){
     pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
 
     // Create File
-    TEST_CHECK(createPageFile (TESTFILE));
+    createPageFile (TESTFILE);
     // Open page file
-    TEST_CHECK(openPageFile (TESTFILE, &fileHandle));
+    openPageFile (TESTFILE, &fileHandle);
 
     // Write 4096 H char in page 3
     int i;
