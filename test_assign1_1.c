@@ -18,17 +18,18 @@ static void testCreateOpenClose(void);
 static void testSinglePageContent(void);
 
 /* main function running all tests */
-//int main (void)
-//{
-//  testName = "";
-//
-//  initStorageManager();
-//
-//  //testCreateOpenClose();
-// testSinglePageContent();
-//
-//  return 0;
-//}
+int
+main (void)
+{
+    testName = "";
+
+    initStorageManager();
+
+    testCreateOpenClose();
+    testSinglePageContent();
+
+    return 0;
+}
 
 
 /* check a return code. If it is not RC_OK then output a message, error description, and exit */
@@ -36,109 +37,64 @@ static void testSinglePageContent(void);
 void
 testCreateOpenClose(void)
 {
-  SM_FileHandle fh;
+    SM_FileHandle fh;
 
-  testName = "test create open and close methods";
+    testName = "test create open and close methods";
 
-  TEST_CHECK(createPageFile (TESTPF));
+    TEST_CHECK(createPageFile (TESTPF));
 
-  TEST_CHECK(openPageFile (TESTPF, &fh));
-  ASSERT_TRUE(strcmp(fh.fileName, TESTPF) == 0, "filename correct");
-  ASSERT_TRUE((fh.totalNumPages == 1), "expect 1 page in new file");
-  ASSERT_TRUE((fh.curPagePos == 0), "freshly opened file's page position should be 0");
-  TEST_CHECK(closePageFile (&fh));
-  TEST_CHECK(destroyPageFile (TESTPF));
+    TEST_CHECK(openPageFile (TESTPF, &fh));
+    ASSERT_TRUE(strcmp(fh.fileName, TESTPF) == 0, "filename correct");
+    ASSERT_TRUE((fh.totalNumPages == 1), "expect 1 page in new file");
+    ASSERT_TRUE((fh.curPagePos == 0), "freshly opened file's page position should be 0");
 
-//   after destruction trying to open the file should cause an error
-  ASSERT_TRUE((openPageFile(TESTPF, &fh) != RC_OK), "opening non-existing file should return an error.");
+    TEST_CHECK(closePageFile (&fh));
+    TEST_CHECK(destroyPageFile (TESTPF));
 
-  TEST_DONE();
+    // after destruction trying to open the file should cause an error
+    ASSERT_TRUE((openPageFile(TESTPF, &fh) != RC_OK), "opening non-existing file should return an error.");
+
+    TEST_DONE();
 }
 
 /* Try to create, open, and close a page file */
 void
 testSinglePageContent(void)
 {
-  SM_FileHandle fh;
-  SM_PageHandle ph,ph1;
-  ph = (SM_PageHandle) malloc(PAGE_SIZE);
-  ph1 = (SM_PageHandle) malloc(PAGE_SIZE);
+    SM_FileHandle fh;
+    SM_PageHandle ph;
+    int i;
 
-  int i;
+    testName = "test single page content";
 
-  testName = "test single page content";
-  TEST_CHECK(createPageFile (TESTPF));
-  TEST_CHECK(openPageFile (TESTPF, &fh));
+    ph = (SM_PageHandle) malloc(PAGE_SIZE);
 
-  // read first page into handle
-  TEST_CHECK(readFirstBlock (&fh, ph));
-  // the page should be empty (zero bytes)
-  for (i=0; i < PAGE_SIZE; i++)
-  ASSERT_TRUE((ph[i] == 0), "expected zero byte in first page of freshly initialized page");
-  printf("first block was empty\n");
+    // create a new page file
+    TEST_CHECK(createPageFile (TESTPF));
+    TEST_CHECK(openPageFile (TESTPF, &fh));
+    printf("created and opened file\n");
 
+    // read first page into handle
+    TEST_CHECK(readFirstBlock (&fh, ph));
+    // the page should be empty (zero bytes)
+    for (i=0; i < PAGE_SIZE; i++)
+        ASSERT_TRUE((ph[i] == 0), "expected zero byte in first page of freshly initialized page");
+    printf("first block was empty\n");
 
+    // change ph to be a string and write that one to disk
+    for (i=0; i < PAGE_SIZE; i++)
+        ph[i] = (i % 10) + '0';
+    TEST_CHECK(writeBlock (0, &fh, ph));
+    printf("writing first block\n");
 
+    // read back the page containing the string and check that it is correct
+    TEST_CHECK(readFirstBlock (&fh, ph));
+    for (i=0; i < PAGE_SIZE; i++)
+        ASSERT_TRUE((ph[i] == (i % 10) + '0'), "character in page read from disk is the one we expected.");
+    printf("reading first block\n");
 
-  // change ph to be a string and write that one to disk
-  for (i=0; i < PAGE_SIZE; i++)
-  ph[i] = 'a';
-  TEST_CHECK(writeBlock (0, &fh, ph));
-  printf("writing first block\n");
+    // destroy new page file
+    TEST_CHECK(destroyPageFile (TESTPF));
 
-
-  TEST_CHECK(readFirstBlock (&fh, ph1));
-  for (i=0; i < PAGE_SIZE; i++)
-    ASSERT_TRUE((ph1[i] == 'a'), "character in page read from disk is the one we expected.");
-
-  fseek(fh.mgmtInfo,4096,SEEK_SET);
-
-
-  for (i=0; i < PAGE_SIZE; i++)
-    ph[i] = 'b';
-  TEST_CHECK(writeBlock (0, &fh, ph));
-  printf("writing first block\n");
-
-
-  TEST_CHECK(readFirstBlock (&fh, ph1));
-  for (i=0; i < PAGE_SIZE; i++)
-    ASSERT_TRUE((ph1[i] == 'b'), "character in page read from disk is the one we expected.");
-
-
-  TEST_CHECK(closePageFile (&fh));
-  TEST_CHECK(destroyPageFile (TESTPF));
- // fseek(fh.mgmtInfo,4096,SEEK_SET);
-  //for (i=0; i < PAGE_SIZE; i++)
-    //ph1[i] = 'c';
-  //TEST_CHECK(writeBlock (0, &fh, ph1));
-  //TEST_CHECK(closePageFile (&fh));
-
-  // create a new page file
-  //TEST_CHECK(createPageFile (TESTPF));
-  //TEST_CHECK(openPageFile (TESTPF, &fh));
-  //printf("created and opened file\n");
-  
-  // read first page into handle
-  //TEST_CHECK(readFirstBlock (&fh, ph));
-  // the page should be empty (zero bytes)
-  //for (i=0; i < PAGE_SIZE; i++)
-    //ASSERT_TRUE((ph[i] == 0), "expected zero byte in first page of freshly initialized page");
-  //printf("first block was empty\n");
-    
-  // change ph to be a string and write that one to disk
-  //for (i=0; i < PAGE_SIZE; i++)
-    //ph[i] = (i % 10) + '0';
-  //TEST_CHECK(writeBlock (0, &fh, ph));
-  //printf("writing first block\n");
-
-  // read back the page containing the string and check that it is correct
-  //TEST_CHECK(readFirstBlock (&fh, ph));
-  //for (i=0; i < PAGE_SIZE; i++)
-    //ASSERT_TRUE((ph[i] == (i % 10) + '0'), "character in page read from disk is the one we expected.");
-  //printf("reading first block\n");
-
-  // destroy new page file
-  //TEST_CHECK(destroyPageFile (TESTPF));
-  
-  //TEST_DONE();
+    TEST_DONE();
 }
