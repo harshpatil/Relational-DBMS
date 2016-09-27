@@ -15,7 +15,7 @@
 char *testName;
 
 /* test output files */
-#define TESTPF "additional_test.bin"
+#define TESTFILE "additional_test.bin"
 
 /* prototypes for test functions */
 static void testWriteBlock();
@@ -38,14 +38,18 @@ int main (void) {
 
 void testWriteBlock(){
 
+    if(fopen(TESTFILE,"r") != NULL){
+        destroyPageFile(TESTFILE);
+    }
+
     SM_FileHandle fileHandle;
     SM_PageHandle pageHandle;
     pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
 
     // Create File
-    TEST_CHECK(createPageFile (TESTPF));
+    TEST_CHECK(createPageFile (TESTFILE));
     // Open page file
-    TEST_CHECK(openPageFile (TESTPF, &fileHandle));
+    TEST_CHECK(openPageFile (TESTFILE, &fileHandle));
 
     // Write 4096 H char in page 1
     for (int i=0; i<PAGE_SIZE; i++){
@@ -77,20 +81,24 @@ void testWriteBlock(){
     }
 
     closePageFile (&fileHandle);
-    destroyPageFile (TESTPF);
+    destroyPageFile (TESTFILE);
     TEST_DONE();
 }
 
 void testAppendEmptyBlock(){
+
+    if(fopen(TESTFILE,"r") != NULL){
+        destroyPageFile(TESTFILE);
+    }
 
     SM_FileHandle fileHandle;
     SM_PageHandle pageHandle;
     pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
 
     // Create File
-    TEST_CHECK(createPageFile (TESTPF));
+    TEST_CHECK(createPageFile (TESTFILE));
     // Open page file
-    TEST_CHECK(openPageFile (TESTPF, &fileHandle));
+    TEST_CHECK(openPageFile (TESTFILE, &fileHandle));
 
     // Append empty page
     TEST_CHECK(appendEmptyBlock(&fileHandle));
@@ -103,20 +111,24 @@ void testAppendEmptyBlock(){
     ASSERT_TRUE(pageHandle[0]=='3', "Total number of pages are 3");
 
     closePageFile (&fileHandle);
-    destroyPageFile (TESTPF);
+    destroyPageFile (TESTFILE);
     TEST_DONE();
 }
 
 void testEnsureCapacity(){
+
+    if(fopen(TESTFILE,"r") != NULL){
+        destroyPageFile(TESTFILE);
+    }
 
     SM_FileHandle fileHandle;
     SM_PageHandle pageHandle;
     pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
 
     // Create File
-    TEST_CHECK(createPageFile (TESTPF));
+    TEST_CHECK(createPageFile (TESTFILE));
     // Open page file
-    TEST_CHECK(openPageFile (TESTPF, &fileHandle));
+    TEST_CHECK(openPageFile (TESTFILE, &fileHandle));
 
     // Check ensure capacity by passing totalPages = 1, No new page should get added
     TEST_CHECK(ensureCapacity(1, &fileHandle));
@@ -133,20 +145,24 @@ void testEnsureCapacity(){
     ASSERT_TRUE(pageHandle[0]=='4', "Total number of pages are : 4");
 
     closePageFile (&fileHandle);
-    destroyPageFile (TESTPF);
+    destroyPageFile (TESTFILE);
     TEST_DONE();
 }
 
 void testWriteBlockAtAHigherPage(){
+
+    if(fopen(TESTFILE,"r") != NULL){
+        destroyPageFile(TESTFILE);
+    }
 
     SM_FileHandle fileHandle;
     SM_PageHandle pageHandle;
     pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
 
     // Create File
-    TEST_CHECK(createPageFile (TESTPF));
+    TEST_CHECK(createPageFile (TESTFILE));
     // Open page file
-    TEST_CHECK(openPageFile (TESTPF, &fileHandle));
+    TEST_CHECK(openPageFile (TESTFILE, &fileHandle));
 
     // Write 4096 H char in page 3
     int i;
@@ -168,18 +184,22 @@ void testWriteBlockAtAHigherPage(){
     ASSERT_TRUE(pageHandle[0]=='2', "Total number of pages are : 2");
 
     closePageFile (&fileHandle);
-    destroyPageFile (TESTPF);
+    destroyPageFile (TESTFILE);
     TEST_DONE();
 }
 
 void testWriteCurrentBlock(void){
 
+    if(fopen(TESTFILE,"r") != NULL){
+        destroyPageFile(TESTFILE);
+    }
+
     SM_FileHandle fileHandle;
     SM_PageHandle pageHandle;
     pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
 
-    createPageFile (TESTPF);
-    openPageFile (TESTPF, &fileHandle);
+    createPageFile (TESTFILE);
+    openPageFile (TESTFILE, &fileHandle);
     appendEmptyBlock(&fileHandle);
 
     // Write 4096 H char at current position, which is page 2
@@ -223,7 +243,7 @@ void testWriteCurrentBlock(void){
     }
 
     closePageFile (&fileHandle);
-    destroyPageFile (TESTPF);
+    destroyPageFile (TESTFILE);
     TEST_DONE();
 
 }
