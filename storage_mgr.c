@@ -112,7 +112,22 @@ RC destroyPageFile (char *fileName){
 }
 
 RC readBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
-   return NULL;
+    CHECK_FILE_VALIDITY(fHandle);
+    if(fHandle->totalNumPages <= pageNum)
+    {
+        return RC_READ_NON_EXISTING_PAGE;
+    }
+
+    if(fseek(fHandle->mgmtInfo,(pageNum+1)*PAGE_SIZE,SEEK_SET)!=0){  //moves pointer to pageNum block of file pointed to by memPage page
+        return RC_READ_FAILED;
+    }
+
+    int r_var =fread(memPage,PAGE_ELEMENT_SIZE,PAGE_SIZE,fHandle->mgmtInfo);      //reads the pageNum block
+    if(r_var != PAGE_SIZE){
+        return RC_READ_FAILED;
+    }
+    fHandle->curPagePos=pageNum;
+    return RC_OK;
 }
 
 
@@ -127,23 +142,23 @@ int getBlockPos (SM_FileHandle *fHandle){
 }
 
 RC readFirstBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
-    return NULL;
+    return readBlock(0,fHandle,memPage);
 }
 
 RC readPreviousBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
-    return NULL;
+    return readBlock(fHandle->curPagePos-1,fHandle,memPage);
 }
 
 RC readCurrentBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
-    return NULL;
+    return readBlock(fHandle->curPagePos,fHandle,memPage);
 }
 
 RC readNextBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
-    return NULL;
+    return readBlock(fHandle->curPagePos+1,fHandle,memPage);
 }
 
 RC readLastBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
-    return NULL;
+    return readBlock(fHandle->totalNumPages-1,fHandle,memPage);
 }
 
 /**
@@ -268,7 +283,8 @@ RC ensureCapacity (int numberOfPages, SM_FileHandle *fileHandle){
         return RC_OK;
     }
     int pagesToBeAdded = numberOfPages - fileHandle->totalNumPages;
-    for(int i=0; i<pagesToBeAdded; i++){
+    int i;
+    for(i=0; i<pagesToBeAdded; i++){
        RC ret_val = appendEmptyBlock(fileHandle);
         if(ret_val != RC_OK){
             return ret_val;

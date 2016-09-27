@@ -65,13 +65,14 @@ void testWriteBlock(){
 
     // Assert value stored in page 1
     TEST_CHECK(readBlock(0, &fileHandle, pageHandle));
-    for(int i=0; i<PAGE_SIZE; i++){
+    int i;
+    for(i=0; i<PAGE_SIZE; i++){
         ASSERT_TRUE(pageHandle[i]=='H', "Page 1 has 4096 'H' char");
     }
 
     // Assert value stored in page 2
     TEST_CHECK(readBlock(1, &fileHandle, pageHandle));
-    for(int i=0; i<PAGE_SIZE; i++){
+    for(i=0; i<PAGE_SIZE; i++){
         ASSERT_TRUE(pageHandle[i]== 'S', "Page 2 has 4096 'S' char");
     }
 
@@ -148,14 +149,15 @@ void testWriteBlockAtAHigherPage(){
     TEST_CHECK(openPageFile (TESTPF, &fileHandle));
 
     // Write 4096 H char in page 3
-    for (int i=0; i<PAGE_SIZE; i++){
+    int i;
+    for (i=0; i<PAGE_SIZE; i++){
         pageHandle[i] = 'H';
     }
     RC result = writeBlock(2, &fileHandle, pageHandle);
     ASSERT_EQUALS_INT(result, RC_WRITE_FAILED, "Write failed as we are trying to write to a page which is greater than total number of pages + 1");
 
     // Write 4096 H char in page 2
-    for (int i=0; i<PAGE_SIZE; i++){
+    for (i=0; i<PAGE_SIZE; i++){
         pageHandle[i] = 'S';
     }
     result = writeBlock(1, &fileHandle, pageHandle);
@@ -181,20 +183,21 @@ void testWriteCurrentBlock(void){
     appendEmptyBlock(&fileHandle);
 
     // Write 4096 H char at current position, which is page 2
-    for (int i=0; i<PAGE_SIZE; i++) {
+    int i;
+    for (i=0; i<PAGE_SIZE; i++) {
         pageHandle[i] = 'H';
     }
     TEST_CHECK(writeCurrentBlock(&fileHandle, pageHandle));
 
     // Assert value stored in page 1
     TEST_CHECK(readBlock(0, &fileHandle, pageHandle));
-    for(int i=0; i<PAGE_SIZE; i++){
+    for(i=0; i<PAGE_SIZE; i++){
         ASSERT_TRUE(pageHandle[i]==0, "Page 1 has 4096 0 char");
     }
 
     // Assert value stored in page 2
     TEST_CHECK(readBlock(1, &fileHandle, pageHandle));
-    for(int i=0; i<PAGE_SIZE; i++){
+    for(i=0; i<PAGE_SIZE; i++){
         ASSERT_TRUE(pageHandle[i]=='H', "Page 2 has 4096 'H' char");
     }
 
@@ -202,20 +205,20 @@ void testWriteCurrentBlock(void){
     ensureCapacity(6, &fileHandle);
 
     // Write 4096 S char at current position, which is page 6
-    for (int i=0; i<PAGE_SIZE; i++) {
+    for (i=0; i<PAGE_SIZE; i++) {
         pageHandle[i] = 'S';
     }
     TEST_CHECK(writeCurrentBlock(&fileHandle, pageHandle));
 
     // Assert value stored in page 4
     TEST_CHECK(readBlock(3, &fileHandle, pageHandle));
-    for(int i=0; i<PAGE_SIZE; i++){
+    for(i=0; i<PAGE_SIZE; i++){
         ASSERT_TRUE(pageHandle[i]==0, "Page 4 has 4096 0 char");
     }
 
     // Assert value stored in page 6
     TEST_CHECK(readBlock(5, &fileHandle, pageHandle));
-    for(int i=0; i<PAGE_SIZE; i++){
+    for(i=0; i<PAGE_SIZE; i++){
         ASSERT_TRUE(pageHandle[i]=='S', "Page 6 has 4096 'S' char");
     }
 
