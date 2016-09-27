@@ -15,9 +15,6 @@ do{ \
   } \
 }while(0);
 
-FILE *filepointer;
-
-
 void initStorageManager(){
 }
 
@@ -115,6 +112,24 @@ RC destroyPageFile (char *fileName){
     return RC_FILE_NOT_FOUND;
 }
 
+
+/**
+ * This method reads a block of data from the file at 'pageNum' position and writes to "memPage".
+ * 1) Checks for validity of file
+ * 2) Checks for validity of page number.
+ * 3) It moves the internal file pointer to the position from where to read using fseek.
+ * 4) If seek fails it returns an error.
+ * 5) Else it reads 4096 elements (element size 1 byte) from the file using fread.
+ * 6) If fread successfully reads 4096 bytes it will update curPagePos to 'pageNum' and return success.
+ * 7) Else it will fail with an error.
+ *
+ * It returns RC_OK on success. It can fail with RC_FILE_HANDLE_NOT_INIT(invalid file), RC_READ_NON_EXISTING_PAGE ( invalid page number)
+ * and RC_READ_FAILED ( failed fseek or fread operation ).
+ * @param pageNum
+ * @param fileHandle
+ * @param memPage
+ * @return
+ */
 RC readBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
     CHECK_FILE_VALIDITY(fHandle);
     if(fHandle->totalNumPages <= pageNum || pageNum < -1)
@@ -145,22 +160,67 @@ int getBlockPos (SM_FileHandle *fHandle){
     return fHandle->curPagePos;
 }
 
+/**
+ * Reads a block of data from curPagePos of the file onto memPage.
+ * It internally calls readBlock seeting pagePos = 0
+ * This method returns RC_OK on success . It can fail with RC_FILE_HANDLE_NOT_INIT (invalid file), RC_READ_NON_EXISTING_PAGE(invalid page number),
+ * RC_READ_FAILED (file seek or read operation failure).
+ * @param fileHandle
+ * @param memPage
+ * @return
+ */
 RC readFirstBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
     return readBlock(0,fHandle,memPage);
 }
 
+/**
+ * Reads data from the block previous to the curPagePos of the file onto memPage.
+ * It internally calls readBlock seeting pagePos = fHandle->curPagePos-1
+ * This method returns RC_OK on success . It can fail with RC_FILE_HANDLE_NOT_INIT (invalid file), RC_READ_NON_EXISTING_PAGE(invalid page number),
+ * RC_READ_FAILED (file seek or read operation failure).
+ * @param fileHandle
+ * @param memPage
+ * @return
+ */
 RC readPreviousBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
     return readBlock(fHandle->curPagePos-1,fHandle,memPage);
 }
 
+/**
+ * Reads a block of data from curPagePos of the file onto memPage.
+ * It internally calls readBlock seeting pagePos = fHandle->curPagePos
+ * This method returns RC_OK on success . It can fail with RC_FILE_HANDLE_NOT_INIT (invalid file), RC_READ_NON_EXISTING_PAGE(invalid page number),
+ * RC_READ_FAILED (file seek or read operation failure).
+ * @param fileHandle
+ * @param memPage
+ * @return
+ */
 RC readCurrentBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
     return readBlock(fHandle->curPagePos,fHandle,memPage);
 }
 
+/**
+ * Reads data from the block next to the curPagePos of the file onto memPage.
+ * It internally calls readBlock seeting pagePos = fHandle->curPagePos+1
+ * This method returns RC_OK on success . It can fail with RC_FILE_HANDLE_NOT_INIT (invalid file), RC_READ_NON_EXISTING_PAGE(invalid page number),
+ * RC_READ_FAILED (file seek or read operation failure).
+ * @param fileHandle
+ * @param memPage
+ * @return
+ */
 RC readNextBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
     return readBlock(fHandle->curPagePos+1,fHandle,memPage);
 }
 
+/**
+ * Reads data from the last block file onto memPage.
+ * It internally calls readBlock seeting pagePos = fHandle->totalNumPages-1
+ * This method returns RC_OK on success . It can fail with RC_FILE_HANDLE_NOT_INIT (invalid file), RC_READ_NON_EXISTING_PAGE(invalid page number),
+ * RC_READ_FAILED (file seek or read operation failure).
+ * @param fileHandle
+ * @param memPage
+ * @return
+ */
 RC readLastBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
     return readBlock(fHandle->totalNumPages-1,fHandle,memPage);
 }
@@ -191,7 +251,7 @@ RC writeBlockData(int pageNum,SM_FileHandle *fileHandle, SM_PageHandle memPage) 
  * 4) It determines the current position of the internal file pointer
  * 5) Calculates the new position of the file pointer where data has to be written.
  * 6) If the curPagePos is same as newPos it directly calls writeBlock
- * 7) Else it first moves the internal to pointer to newPos using fseek
+ * 7) Else it first moves the internal file pointer to newPos using fseek
  * 8) It than calls writeBlockData
  *
  * It returns RC_OK on success and RC_WRITE_FAILED/RC_WRITE_FAILED on error.
@@ -203,7 +263,7 @@ RC writeBlockData(int pageNum,SM_FileHandle *fileHandle, SM_PageHandle memPage) 
 RC writeBlock (int pageNum, SM_FileHandle *fileHandle, SM_PageHandle memPage){
     CHECK_FILE_VALIDITY(fileHandle);
     if(pageNum > fileHandle -> totalNumPages || pageNum < 0){
-        return RC_WRITE_FAILED;
+        return RC_WRITE_NON_EXISTING_PAGE;
     }
     if(pageNum == fileHandle -> totalNumPages){
         RC retVal = appendEmptyBlock(fileHandle);
