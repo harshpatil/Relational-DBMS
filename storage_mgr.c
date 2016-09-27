@@ -90,6 +90,10 @@ RC openPageFile (char *fileName, SM_FileHandle *fileHandle){
  */
 RC closePageFile (SM_FileHandle *fileHandle){
     if(!fclose(fileHandle->mgmtInfo)){
+        fileHandle->totalNumPages=0;
+        fileHandle->curPagePos=0;
+        fileHandle->fileName=NULL;
+        fileHandle->mgmtInfo=NULL;
         return RC_OK;
     }
     return RC_FILE_NOT_FOUND;
@@ -113,7 +117,7 @@ RC destroyPageFile (char *fileName){
 
 RC readBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
     CHECK_FILE_VALIDITY(fHandle);
-    if(fHandle->totalNumPages <= pageNum)
+    if(fHandle->totalNumPages <= pageNum || pageNum < -1)
     {
         return RC_READ_NON_EXISTING_PAGE;
     }
