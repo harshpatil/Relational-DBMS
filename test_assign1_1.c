@@ -30,7 +30,6 @@ int main (void)
   return 0;
 }
 
-
 /* check a return code. If it is not RC_OK then output a message, error description, and exit */
 /* Try to create, open, and close a page file */
 void
@@ -76,9 +75,6 @@ testSinglePageContent(void)
   for (i=0; i < PAGE_SIZE; i++)
   ASSERT_TRUE((ph[i] == 0), "expected zero byte in first page of freshly initialized page");
   printf("first block was empty\n");
-
-
-
 
   // change ph to be a string and write that one to disk
   for (i=0; i < PAGE_SIZE; i++)

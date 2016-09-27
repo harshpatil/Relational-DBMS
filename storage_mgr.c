@@ -141,14 +141,13 @@ RC readBlock (int pageNum, SM_FileHandle *fHandle, SM_PageHandle memPage){
         return RC_READ_FAILED;
     }
 
-    int r_var =fread(memPage,PAGE_ELEMENT_SIZE,PAGE_SIZE,fHandle->mgmtInfo);      //reads the pageNum block
-    if(r_var != PAGE_SIZE){
+    int elementsRead =fread(memPage,PAGE_ELEMENT_SIZE,PAGE_SIZE,fHandle->mgmtInfo);      //reads the pageNum block
+    if(elementsRead != PAGE_SIZE){
         return RC_READ_FAILED;
     }
     fHandle->curPagePos=pageNum;
     return RC_OK;
 }
-
 
 /**
  * Returns the curPagePos of the file specified by fileHandle.
