@@ -100,6 +100,37 @@ Additional error codes added in dberror.h :
    Create file, open page, write data at page 1, write data at page 2, call readPreviousBlock
     - Page 1 data should be retured
 
+9) testReadCurrentBlock(); -->
+   Create file, open file, write data in file 1, write data in file 2
+   Call readCurrentBlock();
+     -Page 2 should be returned
+
+10) testReadLastBlock(); -->
+    Create file, open file, write data in file 1, write data in file 2, write data in file 3
+    Call readLastBlock();
+     -Page 3 should be returned
+
+11) testReadNextBlock(); -->
+    Create file, open file, write data in file 1, write data in file 2
+    Call readNextBlock();
+     -Page 2 should be returned
+
+12) testReadBlock(); -->
+    Create file, open file, write data in file 1
+    Call readBlock();
+     -Page 1 should be returned
+
+13) testGetBlockPos(); -->
+    Create file, open file, write data in file 1, append page at the end of page
+    Call getBlockPos();
+     -Page 1 should be returned
+
+14) testReadFirstBlock();
+    Create file, open file, write data in file 1, write data in file 2
+    Close file, open file
+    Call readFirstBlolck();
+     -Page 1 should be returned.
+
 ==========================================================================================================================================
                                                  # Problem Solution #
 ==========================================================================================================================================
