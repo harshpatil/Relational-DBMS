@@ -36,6 +36,8 @@ the file, the current page position (for reading and writing), the file name, an
 6) test_assign1_1.c
 7) additional_test_cases.c
 8) Makefile
+9) README.txt
+
 
 
 ==========================================================================================================================================
@@ -144,7 +146,7 @@ till user closes it. Read and write operations work only on valid file and page 
 
 1) createPageFile :
    For the first time user needs to create a file before performing any further operations on it. A file with two pages
-   will be created and totalNumPages is set to 1. We have stored "totalNumPages" at the first page (bookkeeping page page position -1),
+   will be created and totalNumPages is set to 1. We have stored "totalNumPages" at the first page (bookkeeping page position -1),
    and the actual data exposed to user starts from second page(page postion 0) which currently is filled with '\0' bytes.
    On success it returns RC_OK, if the file already exists it fails with RC_FILE_ALREADY_EXISTS.
 
@@ -164,14 +166,14 @@ till user closes it. Read and write operations work only on valid file and page 
    On success it returns RC_OK, if the file does not exist it fails with RC_FILE_NOT_FOUND.
 
 5) readBlock :
-   Read operation is allowed only if the file,page number are valid(-1 upto totalNumPages-1) and file is open. All read operations return a
+   Read operation is allowed only if the file or page number are valid(-1 upto totalNumPages-1) and file is open. All read operations return a
    page (4096 bytes) of data. After read curPagePos is updated to the page position which was currently read.
    On success it returns RC_OK. It can fail with RC_FILE_HANDLE_NOT_INIT (invalid file), RC_READ_NON_EXISTING_PAGE(invalid page number),
    RC_READ_FAILED (file seek or read operation failure).
 
 6) getBlockPos:
-   If the file is valid return curPagePos of the file.
-   On success it returns RC_OK. If file is not valid it fails with CHECK_FILE_VALIDITY.
+   If the file is valid, return curPagePos of the file.
+   On success it returns RC_OK. If file is not valid it fails with RC_FILE_HANDLE_NOT_INIT.
 
 7) readFirstBlock :
    It reads the first block (pagePostion =0 ) from the file. Everything else is same as readBlock.
@@ -189,11 +191,10 @@ till user closes it. Read and write operations work only on valid file and page 
     It reads the last block (pagePostion = totalNumPages-1) from the file. Everything else is same as readBlock.
 
 12) writeBlock :
-    Write operation is allowed only if the file,page number are valid and file is open. A page is valid if it is an existing page, or a new page
+    Write operation is allowed only if the file and page number are valid and file is open. A page is valid if it is an existing page, or a new page
     appended to the end. ie., if the file currently has 3 pages, write is allowed for page position 0,1,2 (The old data in this page is
-    replaced with the new data) and write is allowed for page position 3, in this case the totalNumPages is updated to 3 and a new page
-    with the passed data is appended to the file. All write operations write a  page (4096 bytes) of data. After write curPagePos is updated to the
-    page position which was currently written.
+    replaced with the new data) and 3 (in this case the totalNumPages is updated to 3 and a new page with the input data is appended to the file.
+    All write operations write a page (4096 bytes) of data. After write, curPagePos is updated to the page position which was currently written.
     On success it returns RC_OK. It can fail with RC_FILE_HANDLE_NOT_INIT (invalid file), RC_WRITE_NON_EXISTING_PAGE(invalid page number),
     RC_WRITE_FAILED (file seek or write operation failure).
 
@@ -206,9 +207,9 @@ till user closes it. Read and write operations work only on valid file and page 
     On success it returns RC_OK. It can fail with RC_FILE_HANDLE_NOT_INIT (invalid file), RC_WRITE_FAILED (file seek or write operation failure).
 
 15) ensureCapacity :
-    This operation is allowed only if the file is valid and open. If the required number of pages already exists it doesnt do anything,
+    This operation is allowed only if the file is valid and open. If the required number of pages already exist, it doesnt do anything,
     else it will append the required number of pages with '\0' bytes into the file. Update totalNumPages to the new size in both SM_FileHandle and
-    the bookkeeping page of the file. Update curPagePos to the last page appended.
+    the bookkeeping page of the file. Updates curPagePos to the last page appended.
     On success it returns RC_OK. It can fail with RC_FILE_HANDLE_NOT_INIT (invalid file), RC_WRITE_FAILED (file seek or write operation failure).
 
 
