@@ -18,69 +18,209 @@ char *testName;
 #define TESTPF "additional_test.bin"
 
 /* prototypes for test functions */
-static void testWriteMethod(void);
+static void testWriteBlock();
+static void testAppendEmptyBlock();
+static void testEnsureCapacity();
+static void testWriteBlockAtAHigherPage();
+static void testWriteCurrentBlock();
+
 
 /* main function running all tests */
 int main (void) {
-    testName = "";
-    testWriteMethod();
+
+    testWriteBlock();
+    testAppendEmptyBlock();
+    testEnsureCapacity();
+    testWriteBlockAtAHigherPage();
+    testWriteCurrentBlock();
     return 0;
 }
 
-void testWriteMethod(void){
+void testWriteBlock(){
 
-    SM_FileHandle fh;
-    SM_PageHandle ph,ph1;
-    ph = (SM_PageHandle) malloc(PAGE_SIZE);
-    ph1 = (SM_PageHandle) malloc(PAGE_SIZE);
+    SM_FileHandle fileHandle;
+    SM_PageHandle pageHandle;
+    pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
 
-    printf("Executing testWriteMethod \n");
-
-    testName = "test Write Method \n";
+    // Create File
     TEST_CHECK(createPageFile (TESTPF));
-    TEST_CHECK(openPageFile (TESTPF, &fh));
+    // Open page file
+    TEST_CHECK(openPageFile (TESTPF, &fileHandle));
 
-    // change ph to be a string and write that one to disk
+    // Write 4096 H char in page 1
     for (int i=0; i<PAGE_SIZE; i++){
-        ph[i] = 'a';
+        pageHandle[i] = 'H';
     }
-    TEST_CHECK(writeBlock (0, &fh, ph));
-    printf("writing first block\n");
+    TEST_CHECK(writeBlock (0, &fileHandle, pageHandle));
 
-    TEST_CHECK(appendEmptyBlock(&fh));
-    ASSERT_TRUE(fh.totalNumPages==2, "Total number of pages updated correcly in file handle");
-
-    TEST_CHECK(readBlock(-1,&fh,ph));
-    printf("ph[0] : %c \n",ph);
-    ASSERT_TRUE(ph[0]=='2', "Total number of pages updated correcly in file");
-
-
-   TEST_CHECK(readBlock(0,&fh,ph));
+    // Write 4096 S char in page 2
     for (int i=0; i<PAGE_SIZE; i++){
-        ASSERT_TRUE(ph[i]=='a', "Page 0 has only 'a' ");
+        pageHandle[i] = 'S';
     }
+    TEST_CHECK(writeBlock (1, &fileHandle, pageHandle));
 
-    TEST_CHECK(readBlock(1,&fh,ph));
-    for (int i=0; i<PAGE_SIZE; i++){
-        ASSERT_TRUE(ph[i]==0, "Page two has \0 data");
+    // Assert total pages stored in page number -1
+    TEST_CHECK(readBlock(-1, &fileHandle, pageHandle));
+    ASSERT_TRUE(pageHandle[0]=='2', "Total number of pages are 2");
+
+    // Assert value stored in page 1
+    TEST_CHECK(readBlock(0, &fileHandle, pageHandle));
+    for(int i=0; i<PAGE_SIZE; i++){
+        ASSERT_TRUE(pageHandle[i]=='H', "Page 1 has 4096 'H' char");
     }
 
+    // Assert value stored in page 2
+    TEST_CHECK(readBlock(1, &fileHandle, pageHandle));
+    for(int i=0; i<PAGE_SIZE; i++){
+        ASSERT_TRUE(pageHandle[i]== 'S', "Page 2 has 4096 'S' char");
+    }
 
-    TEST_CHECK(ensureCapacity(2,&fh));
-    TEST_CHECK(readBlock(-1,&fh,ph));
-    printf("ph[0] : %c \n",ph);
-    ASSERT_TRUE(ph[0]=='2', "Total number of pages updated to 2 correcly in file\n");
-
-
-
-    TEST_CHECK(ensureCapacity(5,&fh));
-    TEST_CHECK(readBlock(-1,&fh,ph));
-    printf("ph[0] : %c \n",ph);
-    ASSERT_TRUE(ph[0]=='5', "Total number of pages updated to 5 correcly in file\n");
-
-
-    TEST_CHECK(closePageFile (&fh));
-//    TEST_CHECK(destroyPageFile (TESTPF));
-
+    closePageFile (&fileHandle);
+    destroyPageFile (TESTPF);
     TEST_DONE();
+}
+
+void testAppendEmptyBlock(){
+
+    SM_FileHandle fileHandle;
+    SM_PageHandle pageHandle;
+    pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
+
+    // Create File
+    TEST_CHECK(createPageFile (TESTPF));
+    // Open page file
+    TEST_CHECK(openPageFile (TESTPF, &fileHandle));
+
+    // Append empty page
+    TEST_CHECK(appendEmptyBlock(&fileHandle));
+
+    // Append another empty page
+    TEST_CHECK(appendEmptyBlock(&fileHandle));
+
+    // Assert total pages in file
+    TEST_CHECK(readBlock(-1,&fileHandle,pageHandle));
+    ASSERT_TRUE(pageHandle[0]=='3', "Total number of pages are 3");
+
+    closePageFile (&fileHandle);
+    destroyPageFile (TESTPF);
+    TEST_DONE();
+}
+
+void testEnsureCapacity(){
+
+    SM_FileHandle fileHandle;
+    SM_PageHandle pageHandle;
+    pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
+
+    // Create File
+    TEST_CHECK(createPageFile (TESTPF));
+    // Open page file
+    TEST_CHECK(openPageFile (TESTPF, &fileHandle));
+
+    // Check ensure capacity by passing totalPages = 1, No new page should get added
+    TEST_CHECK(ensureCapacity(1, &fileHandle));
+
+    // Assert total pages in file
+    TEST_CHECK(readBlock(-1,&fileHandle,pageHandle));
+    ASSERT_TRUE(pageHandle[0]=='1', "Total number of pages are : 1");
+
+    // Check ensure capacity by passing totalPages = 4, 3 new pages should get added
+    TEST_CHECK(ensureCapacity(4, &fileHandle));
+
+    // Assert total pages in file
+    TEST_CHECK(readBlock(-1,&fileHandle,pageHandle));
+    ASSERT_TRUE(pageHandle[0]=='4', "Total number of pages are : 4");
+
+    closePageFile (&fileHandle);
+    destroyPageFile (TESTPF);
+    TEST_DONE();
+}
+
+void testWriteBlockAtAHigherPage(){
+
+    SM_FileHandle fileHandle;
+    SM_PageHandle pageHandle;
+    pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
+
+    // Create File
+    TEST_CHECK(createPageFile (TESTPF));
+    // Open page file
+    TEST_CHECK(openPageFile (TESTPF, &fileHandle));
+
+    // Write 4096 H char in page 3
+    for (int i=0; i<PAGE_SIZE; i++){
+        pageHandle[i] = 'H';
+    }
+    RC result = writeBlock(2, &fileHandle, pageHandle);
+    ASSERT_EQUALS_INT(result, RC_WRITE_FAILED, "Write failed as we are trying to write to a page which is greater than total number of pages + 1");
+
+    // Write 4096 H char in page 2
+    for (int i=0; i<PAGE_SIZE; i++){
+        pageHandle[i] = 'S';
+    }
+    result = writeBlock(1, &fileHandle, pageHandle);
+    ASSERT_EQUALS_INT(result, RC_OK, "Wrote at page 2");
+
+    // Assert total pages in file
+    TEST_CHECK(readBlock(-1,&fileHandle,pageHandle));
+    ASSERT_TRUE(pageHandle[0]=='2', "Total number of pages are : 2");
+
+    closePageFile (&fileHandle);
+    destroyPageFile (TESTPF);
+    TEST_DONE();
+}
+
+void testWriteCurrentBlock(void){
+
+    SM_FileHandle fileHandle;
+    SM_PageHandle pageHandle;
+    pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
+
+    createPageFile (TESTPF);
+    openPageFile (TESTPF, &fileHandle);
+    appendEmptyBlock(&fileHandle);
+
+    // Write 4096 H char at current position, which is page 2
+    for (int i=0; i<PAGE_SIZE; i++) {
+        pageHandle[i] = 'H';
+    }
+    TEST_CHECK(writeCurrentBlock(&fileHandle, pageHandle));
+
+    // Assert value stored in page 1
+    TEST_CHECK(readBlock(0, &fileHandle, pageHandle));
+    for(int i=0; i<PAGE_SIZE; i++){
+        ASSERT_TRUE(pageHandle[i]==0, "Page 1 has 4096 0 char");
+    }
+
+    // Assert value stored in page 2
+    TEST_CHECK(readBlock(1, &fileHandle, pageHandle));
+    for(int i=0; i<PAGE_SIZE; i++){
+        ASSERT_TRUE(pageHandle[i]=='H', "Page 2 has 4096 'H' char");
+    }
+
+    // Ensure capacity 6
+    ensureCapacity(6, &fileHandle);
+
+    // Write 4096 S char at current position, which is page 6
+    for (int i=0; i<PAGE_SIZE; i++) {
+        pageHandle[i] = 'S';
+    }
+    TEST_CHECK(writeCurrentBlock(&fileHandle, pageHandle));
+
+    // Assert value stored in page 4
+    TEST_CHECK(readBlock(3, &fileHandle, pageHandle));
+    for(int i=0; i<PAGE_SIZE; i++){
+        ASSERT_TRUE(pageHandle[i]==0, "Page 4 has 4096 0 char");
+    }
+
+    // Assert value stored in page 6
+    TEST_CHECK(readBlock(5, &fileHandle, pageHandle));
+    for(int i=0; i<PAGE_SIZE; i++){
+        ASSERT_TRUE(pageHandle[i]=='S', "Page 6 has 4096 'S' char");
+    }
+
+    closePageFile (&fileHandle);
+    destroyPageFile (TESTPF);
+    TEST_DONE();
+
 }
