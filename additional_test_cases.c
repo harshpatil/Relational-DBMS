@@ -4,11 +4,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 #include "storage_mgr.h"
-#include "dberror.h"
 #include "test_helper.h"
 
 // test name
@@ -23,7 +20,9 @@ static void testAppendEmptyBlock();
 static void testEnsureCapacity();
 static void testWriteBlockAtAHigherPage();
 static void testWriteCurrentBlock();
-
+static void testReadIncorrectPage();
+static void testResetValuesOnFileClosure();
+static void testReadPreviousBlock();
 
 /* main function running all tests */
 int main (void) {
@@ -33,6 +32,9 @@ int main (void) {
     testEnsureCapacity();
     testWriteBlockAtAHigherPage();
     testWriteCurrentBlock();
+    testReadIncorrectPage();
+    testResetValuesOnFileClosure();
+    testReadPreviousBlock();
     return 0;
 }
 
@@ -47,18 +49,19 @@ void testWriteBlock(){
     pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
 
     // Create File
-    TEST_CHECK(createPageFile (TESTFILE));
+    createPageFile (TESTFILE);
     // Open page file
-    TEST_CHECK(openPageFile (TESTFILE, &fileHandle));
+    openPageFile (TESTFILE, &fileHandle);
 
     // Write 4096 H char in page 1
-    for (int i=0; i<PAGE_SIZE; i++){
+    int i;
+    for (i=0; i<PAGE_SIZE; i++){
         pageHandle[i] = 'H';
     }
     TEST_CHECK(writeBlock (0, &fileHandle, pageHandle));
 
     // Write 4096 S char in page 2
-    for (int i=0; i<PAGE_SIZE; i++){
+    for (i=0; i<PAGE_SIZE; i++){
         pageHandle[i] = 'S';
     }
     TEST_CHECK(writeBlock (1, &fileHandle, pageHandle));
@@ -69,7 +72,6 @@ void testWriteBlock(){
 
     // Assert value stored in page 1
     TEST_CHECK(readBlock(0, &fileHandle, pageHandle));
-    int i;
     for(i=0; i<PAGE_SIZE; i++){
         ASSERT_TRUE(pageHandle[i]=='H', "Page 1 has 4096 'H' char");
     }
@@ -96,9 +98,9 @@ void testAppendEmptyBlock(){
     pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
 
     // Create File
-    TEST_CHECK(createPageFile (TESTFILE));
+    createPageFile (TESTFILE);
     // Open page file
-    TEST_CHECK(openPageFile (TESTFILE, &fileHandle));
+    openPageFile (TESTFILE, &fileHandle);
 
     // Append empty page
     TEST_CHECK(appendEmptyBlock(&fileHandle));
@@ -126,9 +128,9 @@ void testEnsureCapacity(){
     pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
 
     // Create File
-    TEST_CHECK(createPageFile (TESTFILE));
+    createPageFile (TESTFILE);
     // Open page file
-    TEST_CHECK(openPageFile (TESTFILE, &fileHandle));
+    openPageFile (TESTFILE, &fileHandle);
 
     // Check ensure capacity by passing totalPages = 1, No new page should get added
     TEST_CHECK(ensureCapacity(1, &fileHandle));
@@ -160,9 +162,9 @@ void testWriteBlockAtAHigherPage(){
     pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
 
     // Create File
-    TEST_CHECK(createPageFile (TESTFILE));
+    createPageFile (TESTFILE);
     // Open page file
-    TEST_CHECK(openPageFile (TESTFILE, &fileHandle));
+    openPageFile (TESTFILE, &fileHandle);
 
     // Write 4096 H char in page 3
     int i;
@@ -245,5 +247,101 @@ void testWriteCurrentBlock(void){
     closePageFile (&fileHandle);
     destroyPageFile (TESTFILE);
     TEST_DONE();
+}
 
+void testReadIncorrectPage(){
+
+    if(fopen(TESTFILE,"r") != NULL){
+        destroyPageFile(TESTFILE);
+    }
+
+    SM_FileHandle fileHandle;
+    SM_PageHandle pageHandle;
+    pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
+
+    createPageFile (TESTFILE);
+    openPageFile (TESTFILE, &fileHandle);
+
+    int result = readBlock(-2, &fileHandle, pageHandle);
+    ASSERT_TRUE(result == RC_READ_NON_EXISTING_PAGE, "Read non existing page");
+
+    closePageFile (&fileHandle);
+    destroyPageFile (TESTFILE);
+    TEST_DONE();
+}
+
+void testResetValuesOnFileClosure(){
+
+    if(fopen(TESTFILE,"r") != NULL){
+        destroyPageFile(TESTFILE);
+    }
+
+    SM_FileHandle fileHandle;
+    SM_PageHandle pageHandle;
+    pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
+
+    createPageFile (TESTFILE);
+    openPageFile (TESTFILE, &fileHandle);
+
+    // Write 4096 H char in page 1
+    int i;
+    for (i=0; i<PAGE_SIZE; i++){
+        pageHandle[i] = 'H';
+    }
+    writeBlock (0, &fileHandle, pageHandle);
+
+    // Write 4096 S char in page 2
+    for (i=0; i<PAGE_SIZE; i++){
+        pageHandle[i] = 'S';
+    }
+    writeBlock (1, &fileHandle, pageHandle);
+
+    // Close Page File
+    TEST_CHECK(closePageFile (&fileHandle));
+    ASSERT_TRUE(fileHandle.curPagePos==0, "Current page is set 0");
+    ASSERT_TRUE(fileHandle.totalNumPages==0, "Total number of pages is set to 0");
+    ASSERT_TRUE(fileHandle.mgmtInfo==NULL, "management info is set to NULL");
+    ASSERT_TRUE(fileHandle.fileName==NULL, "File name is set to NULL");
+
+    // Open Page File
+    openPageFile(TESTFILE, &fileHandle);
+    ASSERT_TRUE(fileHandle.curPagePos==0, "Page 1 has 4096 'H' char");
+    ASSERT_TRUE(fileHandle.totalNumPages==2, "Page 1 has 4096 'H' char");
+
+    closePageFile (&fileHandle);
+    destroyPageFile (TESTFILE);
+    TEST_DONE();
+}
+
+void testReadPreviousBlock(){
+
+    if(fopen(TESTFILE,"r") != NULL){
+        destroyPageFile(TESTFILE);
+    }
+
+    SM_FileHandle fileHandle;
+    SM_PageHandle pageHandle;
+    pageHandle = (SM_PageHandle) malloc(PAGE_SIZE);
+
+    createPageFile (TESTFILE);
+    openPageFile (TESTFILE, &fileHandle);
+
+    // Write 4096 H char in page 1
+    int i;
+    for (i=0; i<PAGE_SIZE; i++){
+        pageHandle[i] = 'H';
+    }
+    writeBlock (0, &fileHandle, pageHandle);
+
+    // Write 4096 S char in page 2
+    for (i=0; i<PAGE_SIZE; i++){
+        pageHandle[i] = 'S';
+    }
+    writeBlock (1, &fileHandle, pageHandle);
+
+    //Read Previous block
+    TEST_CHECK(readPreviousBlock(&fileHandle, pageHandle));
+    for(i=0; i<PAGE_SIZE; i++){
+        ASSERT_TRUE(pageHandle[i]=='H', "Previous page has 4096 'H' char");
+    }
 }
