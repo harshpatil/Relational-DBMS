@@ -172,7 +172,7 @@ void testWriteBlockAtAHigherPage(){
         pageHandle[i] = 'H';
     }
     RC result = writeBlock(2, &fileHandle, pageHandle);
-    ASSERT_EQUALS_INT(result, RC_WRITE_FAILED, "Write failed as we are trying to write to a page which is greater than total number of pages + 1");
+    ASSERT_EQUALS_INT(result, RC_WRITE_NON_EXISTING_PAGE, "Write failed as we are trying to write to a page which is greater than total number of pages + 1");
 
     // Write 4096 H char in page 2
     for (i=0; i<PAGE_SIZE; i++){
