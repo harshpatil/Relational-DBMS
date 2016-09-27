@@ -15,8 +15,10 @@ do{ \
   } \
 }while(0);
 
-void initStorageManager(){
+FILE *filepointer;
 
+
+void initStorageManager(){
 }
 
 /**
@@ -145,7 +147,9 @@ RC readLastBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
 }
 
 /**
- * This method
+ * This method writes the data in memPage to the file specified by fileHandleand updates the curPagePos in fileHandle.
+ *
+ * It returns RC_OK on success and RC_WRITE_FAILED on failure.
  * @param pageNum
  * @param fileHandle
  * @param memPage
@@ -160,7 +164,23 @@ RC writeBlockData(int pageNum,SM_FileHandle *fileHandle, SM_PageHandle memPage) 
     return RC_OK;
 }
 
-
+/**
+ * This method writes data from 'memPage' into the file at 'pageNum' position.
+ * 1) Checks for validity of file
+ * 2) Checks for validity of page number.
+ * 3) If page num is equal to totalpages, it appends and empty page and uses the new page for writing.
+ * 4) It determines the current position of the internal file pointer
+ * 5) Calculates the new position of the file pointer where data has to be written.
+ * 6) If the curPagePos is same as newPos it directly calls writeBlock
+ * 7) Else it first moves the internal to pointer to newPos using fseek
+ * 8) It than calls writeBlockData
+ *
+ * It returns RC_OK on success and RC_WRITE_FAILED/RC_WRITE_FAILED on error.
+ * @param pageNum
+ * @param fileHandle
+ * @param memPage
+ * @return
+ */
 RC writeBlock (int pageNum, SM_FileHandle *fileHandle, SM_PageHandle memPage){
     CHECK_FILE_VALIDITY(fileHandle);
     if(pageNum > fileHandle -> totalNumPages || pageNum < 0){
@@ -172,6 +192,7 @@ RC writeBlock (int pageNum, SM_FileHandle *fileHandle, SM_PageHandle memPage){
             return retVal;
         }
     }
+
     long curFilePos = ftell(fileHandle -> mgmtInfo);
     long newFilePos = (pageNum+1)*PAGE_SIZE*PAGE_ELEMENT_SIZE;
     if( curFilePos == newFilePos){
@@ -183,10 +204,32 @@ RC writeBlock (int pageNum, SM_FileHandle *fileHandle, SM_PageHandle memPage){
     return RC_WRITE_FAILED;
 }
 
+/**
+ * Writes data from memPage onto the curPagePos of the file.
+ * It internally calls writeBlock seeting pagePos = curPagePos of file handle
+ *
+ * This method returns RC_OK on success and RC_WRITE_FAILED/RC_WRITE_FAILED on error.
+ * @param fileHandle
+ * @param memPage
+ * @return
+ */
 RC writeCurrentBlock (SM_FileHandle *fileHandle, SM_PageHandle memPage){
     return writeBlock(fileHandle -> curPagePos,fileHandle,memPage);
 }
 
+/**
+ * This method appends an empty block to the file.
+ * 1)It moves the file pointer to the newPos where empty page needs to be added
+ * 2)If the above step is successfull it appends and empty block data
+ * 3)Increment the filehandle->totalNumPages
+ * 4)Rewinds pointer to beginning of file
+ * 6)Updates totalNumPages at the beginning of the file
+ * 6)Moves file pointer back the npos of the newly added page.
+ *
+ * This method return RC_OK on success and RC_FILE_HANDLE_NOT_INIT/RC_WRITE_FAILED ON FAILURE.
+ * @param fileHandle
+ * @return
+ */
 RC appendEmptyBlock (SM_FileHandle *fileHandle){
 
     CHECK_FILE_VALIDITY(fileHandle);
@@ -207,6 +250,17 @@ RC appendEmptyBlock (SM_FileHandle *fileHandle){
     return RC_WRITE_FAILED;
 }
 
+/**
+ * This method increases the totalNumPages in the file to numberOfPages passed.
+ * 1) Checks for the validity of the file
+ * 2) If the specified number of pages already exists it returns.
+ * 3) It determines the number of pages to be appended and calls appendEmptyBlock for each one of them.
+ *
+ * This method returns RC_OK on success and RC_FILE_HANDLE_NOT_INIT/RC_WRITE_FAILED ON FAILURE.
+ * @param numberOfPages
+ * @param fileHandle
+ * @return
+ */
 RC ensureCapacity (int numberOfPages, SM_FileHandle *fileHandle){
 
     CHECK_FILE_VALIDITY(fileHandle);
