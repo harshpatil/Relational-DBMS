@@ -52,13 +52,14 @@ void testWriteBlock(){
     TEST_CHECK(openPageFile (TESTFILE, &fileHandle));
 
     // Write 4096 H char in page 1
-    for (int i=0; i<PAGE_SIZE; i++){
+    int i;
+    for (i=0; i<PAGE_SIZE; i++){
         pageHandle[i] = 'H';
     }
     TEST_CHECK(writeBlock (0, &fileHandle, pageHandle));
 
     // Write 4096 S char in page 2
-    for (int i=0; i<PAGE_SIZE; i++){
+    for (i=0; i<PAGE_SIZE; i++){
         pageHandle[i] = 'S';
     }
     TEST_CHECK(writeBlock (1, &fileHandle, pageHandle));
@@ -69,7 +70,6 @@ void testWriteBlock(){
 
     // Assert value stored in page 1
     TEST_CHECK(readBlock(0, &fileHandle, pageHandle));
-    int i;
     for(i=0; i<PAGE_SIZE; i++){
         ASSERT_TRUE(pageHandle[i]=='H', "Page 1 has 4096 'H' char");
     }
