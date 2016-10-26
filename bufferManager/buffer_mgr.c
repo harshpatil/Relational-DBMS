@@ -20,6 +20,7 @@
 #define MAKE_PAGE_DATA()					\
   ((SM_PageHandle) malloc (sizeof(PAGE_SIZE)))
 
+/* FrameNode stores data of one page (frame) of buffer pool*/
 typedef struct FrameNode{
 
     int pageNumber;
@@ -95,6 +96,54 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
 
     bm->mgmtData = bmInfo;
     closePageFile(&fileHandle);
+}
+
+
+RC shutdownBufferPool(BM_BufferPool *const bm){
+
+    if(bm == NULL || bm->pageFile == NULL || bm->numPages <= 0){
+        return RC_BM_INVALID;
+    }
+
+    RC forceFlushPoolStatus = forceFlushPool(bm);
+    if(forceFlushPoolStatus != RC_OK){
+        return forceFlushPoolStatus;
+    }
+
+    BufferManagerInfo *bufferManagerInfo = (BufferManagerInfo *)bm->mgmtData;
+    FrameNode *current = bufferManagerInfo->headFrameNode;
+    while (current != NULL){
+        current = current->next;
+        free(bufferManagerInfo->headFrameNode->data);
+        free(bufferManagerInfo->headFrameNode);
+        bufferManagerInfo->headFrameNode = current;
+    }
+
+    bufferManagerInfo->tailFrameNode = NULL;
+    free(bufferManagerInfo);
+    bm->numPages = 0;
+    return RC_OK;
+}
+
+RC forceFlushPool(BM_BufferPool *const bm){
+
+    if(bm == NULL || bm->pageFile == NULL || bm->numPages <= 0){
+        return RC_BM_INVALID;
+    }
+    BufferManagerInfo *bufferManagerInfo = (BufferManagerInfo *)bm->mgmtData;
+    FrameNode *current = bufferManagerInfo->headFrameNode;
+    SM_FileHandle fileHandle;
+
+    while (current != NULL) {
+        if (current->dirty == true) {
+            if(writeBlock(current->pageNumber, &fileHandle, current->data) != RC_OK){
+                return RC_WRITE_FAILED;
+            }
+            current->dirty = false;
+            bufferManagerInfo->numOfDiskWrites++;
+        }
+        current = current->next;
+    }
     return RC_OK;
 }
 
