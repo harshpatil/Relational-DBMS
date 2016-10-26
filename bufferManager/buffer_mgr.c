@@ -1,11 +1,27 @@
 //
 // Created by Harshavardhan Patil on 10/26/16.
 //
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "buffer_mgr.h"
+#include "dberror.h"
 #include "storage_mgr.h"
 
 #define MAX_FRAMES 100
+
+typedef struct FrameNode{
+
+    int pageNumber;
+    int frameNumber;
+    int dirty;
+    int fixCount;
+    int pageFrequency;
+    char *data;
+    struct FrameNode *next;
+    struct FrameNode *previous;
+
+}FrameNode;
 
 // convenience macros
 #define MAKE_BUFFER_MANAGER_INFO()					\
