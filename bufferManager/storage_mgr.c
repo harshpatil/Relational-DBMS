@@ -274,10 +274,10 @@ RC writeBlock (int pageNum, SM_FileHandle *fileHandle, SM_PageHandle memPage){
     long curFilePos = ftell(fileHandle -> mgmtInfo);
     long newFilePos = (pageNum+1)*PAGE_SIZE*PAGE_ELEMENT_SIZE;
     if( curFilePos == newFilePos){
-       return writeBlockData(pageNum,fileHandle,memPage);
+        return writeBlockData(pageNum,fileHandle,memPage);
     }
     if(fseek(fileHandle -> mgmtInfo,newFilePos,SEEK_SET)==0){
-       return writeBlockData(pageNum,fileHandle,memPage);
+        return writeBlockData(pageNum,fileHandle,memPage);
     }
     return RC_WRITE_FAILED;
 }
@@ -348,7 +348,7 @@ RC ensureCapacity (int numberOfPages, SM_FileHandle *fileHandle){
     int pagesToBeAdded = numberOfPages - fileHandle->totalNumPages;
     int i;
     for(i=0; i<pagesToBeAdded; i++){
-       RC ret_val = appendEmptyBlock(fileHandle);
+        RC ret_val = appendEmptyBlock(fileHandle);
         if(ret_val != RC_OK){
             return ret_val;
         }

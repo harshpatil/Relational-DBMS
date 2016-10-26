@@ -20,6 +20,7 @@ set(SOURCE_FILES
         bufferManager/test_assign2_1.c
         bufferManager/test_helper.h
         bufferManager/buffer_mgr_stat.h
-        bufferManager/buffer_mgr_stat.c)
+        bufferManager/buffer_mgr_stat.c
+        bufferManager/dt.h)
 
 add_executable(Relational_DBMS ${SOURCE_FILES})
