@@ -20,6 +20,28 @@
 #define MAKE_PAGE_DATA()					\
   ((SM_PageHandle) malloc (sizeof(PAGE_SIZE)))
 
+#define CHECK_BUFFER_VALIDITY(bufferManager) \
+do{ \
+  if(bm == NULL || bm->pageFile == NULL ||  bm->numPages == 0){   \
+   return  RC_BM_INVALID;   \
+  } \
+}while(0);
+
+#define CHECK_BUFFER_AND_PAGE_VALIDITY(bufferManager, page) \
+do{ \
+  if(bm == NULL || bm->pageFile == NULL ||  bm->numPages == 0 || page == NULL || page->pageNum<=0){   \
+   return  RC_BM_INVALID;   \
+  } \
+}while(0);
+
+#define CHECK_BUFFER_AND_STRATEGY_VALIDITY(bufferManager, strategy) \
+do{ \
+  if(bm == NULL || bm->pageFile == NULL || numPages <= 0 || strategy == NULL){   \
+   return  RC_BM_INVALID;   \
+  } \
+}while(0);
+
+
 /* FrameNode stores data of one page (frame) of buffer pool*/
 typedef struct FrameNode{
 
@@ -68,10 +90,10 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
                   void *stratData){
     SM_FileHandle fileHandle;
     int status;
-    if(bm == NULL || bm->pageFile == NULL || numPages <= 0 || strategy == NULL){
-        return RC_BM_INVALID;
-    }
-    if ((status = openPageFile ((char *)pageFileName, &fileHandle)) != RC_OK){
+
+    CHECK_BUFFER_AND_STRATEGY_VALIDITY(bm, strategy);
+
+    if((status = openPageFile ((char *)pageFileName, &fileHandle)) != RC_OK){
         return status;
     }
     bm->numPages = numPages;
@@ -101,8 +123,16 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
 
 RC shutdownBufferPool(BM_BufferPool *const bm){
 
-    if(bm == NULL || bm->pageFile == NULL || bm->numPages <= 0){
-        return RC_BM_INVALID;
+    CHECK_BUFFER_VALIDITY(bm);
+
+    BufferManagerInfo *bufferManagerInfo = (BufferManagerInfo *)bm->mgmtData;
+    FrameNode *current = bufferManagerInfo->headFrameNode;
+
+    int i;
+    for(i=0; i<bm->numPages; i++){
+        if(bufferManagerInfo->pinCountsPerFrame[i] > 0){
+            return RC_BM_POOL_IN_USE;
+        }
     }
 
     RC forceFlushPoolStatus = forceFlushPool(bm);
@@ -110,8 +140,6 @@ RC shutdownBufferPool(BM_BufferPool *const bm){
         return forceFlushPoolStatus;
     }
 
-    BufferManagerInfo *bufferManagerInfo = (BufferManagerInfo *)bm->mgmtData;
-    FrameNode *current = bufferManagerInfo->headFrameNode;
     while (current != NULL){
         current = current->next;
         free(bufferManagerInfo->headFrameNode->data);
@@ -127,12 +155,15 @@ RC shutdownBufferPool(BM_BufferPool *const bm){
 
 RC forceFlushPool(BM_BufferPool *const bm){
 
-    if(bm == NULL || bm->pageFile == NULL || bm->numPages <= 0){
-        return RC_BM_INVALID;
-    }
+    CHECK_BUFFER_VALIDITY(bm);
+
     BufferManagerInfo *bufferManagerInfo = (BufferManagerInfo *)bm->mgmtData;
     FrameNode *current = bufferManagerInfo->headFrameNode;
     SM_FileHandle fileHandle;
+
+    if (openPageFile ((char *)(bm->pageFile), &fileHandle) != RC_OK){
+        return RC_FILE_NOT_FOUND;
+    }
 
     while (current != NULL) {
         if (current->dirty == true) {
@@ -145,25 +176,27 @@ RC forceFlushPool(BM_BufferPool *const bm){
         }
         current = current->next;
     }
+    closePageFile(&fileHandle);
     return RC_OK;
 }
 
 RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page){
- if( bm == NULL || bm->pageFile == NULL ||  bm->numPages == 0 || page == NULL || page->pageNum<=0) {
-     return RC_BM_INVALID;
- }
 
- BufferManagerInfo* bmInfo = bm->mgmtData;
- FrameNode* frameNodeToMarkDirty;
- if((frameNodeToMarkDirty=findFrameNodeByPageNum(bmInfo->headFrameNode,page->pageNum))==NULL){
-    return RC_BM_INVALID_PAGE;
- }
- frameNodeToMarkDirty->dirty=true;
- bmInfo->dirtyFlagPerFrame[frameNodeToMarkDirty->frameNumber]=true;
- return RC_OK;
+    CHECK_BUFFER_AND_PAGE_VALIDITY(bm, page);
+
+    BufferManagerInfo* bmInfo = bm->mgmtData;
+    FrameNode* frameNodeToMarkDirty;
+    if((frameNodeToMarkDirty=findFrameNodeByPageNum(bmInfo->headFrameNode,page->pageNum))==NULL){
+        return RC_BM_INVALID_PAGE;
+    }
+
+    frameNodeToMarkDirty->dirty=true;
+    bmInfo->dirtyFlagPerFrame[frameNodeToMarkDirty->frameNumber]=true;
+    return RC_OK;
 }
 
 FrameNode *findFrameNodeByPageNum(FrameNode *currentNode, PageNumber num) {
+
     while(currentNode!=NULL){
         if(currentNode->pageNumber==num){
             return currentNode;
@@ -173,10 +206,30 @@ FrameNode *findFrameNodeByPageNum(FrameNode *currentNode, PageNumber num) {
     return NULL;
 }
 
-RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page){
-    if( bm == NULL || bm->pageFile == NULL ||  bm->numPages == 0 || page == NULL || page->pageNum<=0) {
-        return RC_BM_INVALID;
+RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page){
+
+    CHECK_BUFFER_AND_PAGE_VALIDITY(bm, page);
+
+    BufferManagerInfo *bufferManagerInfo = (BufferManagerInfo *)bm->mgmtData;
+    FrameNode *frameNodeToUnpin;
+
+    if((frameNodeToUnpin=findFrameNodeByPageNum(bufferManagerInfo->headFrameNode,page->pageNum))==NULL){
+        return RC_BM_INVALID_PAGE;
     }
+
+    if(frameNodeToUnpin->fixCount > 0){
+        frameNodeToUnpin->fixCount--;
+    } else{
+        return RC_BM_INVALID_PAGE;
+    }
+
+    return RC_OK;
+}
+
+RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page){
+
+    CHECK_BUFFER_AND_PAGE_VALIDITY(bm, page);
+
     BufferManagerInfo* bmInfo = bm->mgmtData;
     FrameNode *frameToFlush;
     SM_FileHandle *fileHandle;
@@ -196,7 +249,6 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page){
     closePageFile(&fileHandle);
 
     return  RC_OK;
-
 }
 
 PageNumber *getFrameContents (BM_BufferPool *const bm){
