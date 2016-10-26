@@ -141,6 +141,7 @@ RC forceFlushPool(BM_BufferPool *const bm){
             }
             current->dirty = false;
             bufferManagerInfo->numOfDiskWrites++;
+            bufferManagerInfo->dirtyFlagPerFrame[current->frameNumber]=false;
         }
         current = current->next;
     }
@@ -170,6 +171,32 @@ FrameNode *findFrameNodeByPageNum(FrameNode *currentNode, PageNumber num) {
         currentNode = currentNode->next;
     }
     return NULL;
+}
+
+RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page){
+    if( bm == NULL || bm->pageFile == NULL ||  bm->numPages == 0 || page == NULL || page->pageNum<=0) {
+        return RC_BM_INVALID;
+    }
+    BufferManagerInfo* bmInfo = bm->mgmtData;
+    FrameNode *frameToFlush;
+    SM_FileHandle *fileHandle;
+    int status;
+
+    if((frameToFlush=findFrameNodeByPageNum(bmInfo->headFrameNode,page->pageNum))==NULL){
+        return RC_BM_INVALID_PAGE;
+    }
+    if((status=openPageFile(bm->pageFile,fileHandle)) != RC_OK){
+        return status;
+    }
+    if((status=writeBlock(frameToFlush->pageNumber,fileHandle,frameToFlush->data)) != RC_OK){
+        return status;
+    }
+    (bmInfo->numOfDiskWrites)++;
+    bmInfo->dirtyFlagPerFrame[frameToFlush->frameNumber]=true;
+    closePageFile(&fileHandle);
+
+    return  RC_OK;
+
 }
 
 PageNumber *getFrameContents (BM_BufferPool *const bm){
