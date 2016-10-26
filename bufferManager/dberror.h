@@ -37,6 +37,7 @@ typedef int RC;
 
 #define RC_BM_INVALID 401
 #define RC_BM_INVALID_PAGE 402
+#define RC_BM_POOL_IN_USE 403
 
 /* holder for error messages */
 extern char *RC_message;
