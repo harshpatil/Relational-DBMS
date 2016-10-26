@@ -1,6 +1,8 @@
 //
 // Created by Harshavardhan Patil on 10/26/16.
 //
+// This file has implementation of all the interfaces mentioned in buffer_mgr.h
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,49 +22,60 @@
 #define MAKE_PAGE_DATA()					\
   ((SM_PageHandle) malloc (sizeof(PAGE_SIZE)))
 
-/* FrameNode stores data of one page (frame) of buffer pool*/
+/* FrameNode stores data of one frame of buffer pool*/
 typedef struct FrameNode{
 
-    int pageNumber;
-    int frameNumber;
-    bool dirty;
-    int fixCount;
-    int requestCount;
-    char *data;
-    struct FrameNode *next;
-    struct FrameNode *previous;
+    int pageNumber; //pagenumber stored at this frame
+    int frameNumber; //frameNumber in the buffer pool.
+    bool dirty; //true if the page at this frame has been marked dirty,false otherwise.
+    int fixCount; //The total number of pins to the page stored in this frame.
+    char *data; //The char pointer to the data stored in this frame, corresponding to the pageNum.
+    struct FrameNode *next; //Pointer to the next FrameNode
+    struct FrameNode *previous; //Pointer to the previous FrameNode.
 
 }FrameNode;
 
 /* Additional data which will be required per buffer pool. Will be attached to BM_BufferPool->mgmtData*/
 typedef struct BufferManagerInfo{
-    int numOfDiskReads;
-    int numOfDiskWrites;
-    int frameToPageId[MAX_FRAMES];
-    bool dirtyFlagPerFrame[MAX_FRAMES];
-    int pinCountsPerFrame[MAX_FRAMES];
-    FrameNode *headFrameNode;
-    FrameNode *tailFrameNode;
+    int numOfDiskReads; //Number of disk read operations happened for this buffer pool.
+    int numOfDiskWrites; //Number of disk writes operations happened for this buffer pool.
+    int frameToPageId[MAX_FRAMES]; //Array of size MAX_FRAMES, at each index it stores the pageId stored at that frame index.
+    bool dirtyFlagPerFrame[MAX_FRAMES]; //Array of size MAX_FRAMES, at each index it stores the dirty flag corresponding to page stored at that frame index.
+    int pinCountsPerFrame[MAX_FRAMES]; //Array of size MAX_FRAMES, at each index it stores the pin count corresponding to the page stored at that frame index.
+    FrameNode *headFrameNode; //Pointer to the head frameNode.
+    FrameNode *tailFrameNode; //Pointer to the tail frameNode.
 }BufferManagerInfo;
 
 FrameNode *findFrameNodeByPageNum(FrameNode *pNode, PageNumber num);
 
-/* To create a new node for frame list*/
+/* To create a new frame node.*/
 FrameNode *newNode(int i){
-
     FrameNode *node = MAKE_FRAME_NODE;
     node->pageNumber = NO_PAGE;
     node->frameNumber = i;
     node->dirty = 0;
     node->fixCount = 0;
-    node->requestCount = 0;
     node->data =  MAKE_PAGE_DATA();
     node->next = NULL;
     node->previous = NULL;
     return node;
 }
 
-// Buffer Manager Interface Pool Handling
+/**
+ * This method initialises the buffer pool.
+ * 1) It checks if the input parameters passed is valid.
+ * 2) If the pagefile input corresponds to a valid file.
+ * 3) It initialises BM_BufferPool and BufferManagerInfo object properties to it's default values.
+ * 4) It creates frameNodes equal to page size input.
+ * 5) It closes the page File.
+ * 6) It returnc RC_OK if buffer pool was successfully initialised.
+ * @param bm
+ * @param pageFileName
+ * @param numPages
+ * @param strategy
+ * @param stratData
+ * @return
+ */
 RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
                   const int numPages, ReplacementStrategy strategy,
                   void *stratData){
@@ -96,9 +109,22 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
 
     bm->mgmtData = bmInfo;
     closePageFile(&fileHandle);
+    return RC_OK;
 }
 
-
+/**
+ * This method shuts down the buffer pool and releases all resources acquired.
+ * 1) It checks if the input parameters passed is valid.
+ * 2) It checks if there are any pinned page.
+ * 3) If both the above condition passes, It will writes all dirty pages back to the disk.
+ * 4) It free's the memory occupied by all FrameNodes corresponding to this buffer pool.
+ * 5) It free's the buffer manager info.
+ *
+ * If the buffer pool has been shut down properly, it will return RC_OK.
+ * Returns RC_OK
+ * @param bm
+ * @return
+ */
 RC shutdownBufferPool(BM_BufferPool *const bm){
 
     if(bm == NULL || bm->pageFile == NULL || bm->numPages <= 0){
@@ -122,9 +148,17 @@ RC shutdownBufferPool(BM_BufferPool *const bm){
     bufferManagerInfo->tailFrameNode = NULL;
     free(bufferManagerInfo);
     bm->numPages = 0;
+    bm->mgmtData = NULL;
     return RC_OK;
 }
 
+/**
+ * This mthod writes al dirty pages in the pool back to disk.
+ * 1) It checks for the validity of the input parameters.
+ * 2) 
+ * @param bm
+ * @return
+ */
 RC forceFlushPool(BM_BufferPool *const bm){
 
     if(bm == NULL || bm->pageFile == NULL || bm->numPages <= 0){
@@ -133,11 +167,11 @@ RC forceFlushPool(BM_BufferPool *const bm){
     BufferManagerInfo *bufferManagerInfo = (BufferManagerInfo *)bm->mgmtData;
     FrameNode *current = bufferManagerInfo->headFrameNode;
     SM_FileHandle fileHandle;
-
+    int status;
     while (current != NULL) {
         if (current->dirty == true) {
-            if(writeBlock(current->pageNumber, &fileHandle, current->data) != RC_OK){
-                return RC_WRITE_FAILED;
+            if((status=writeBlock(current->pageNumber, &fileHandle, current->data)) != RC_OK){
+                return status;
             }
             current->dirty = false;
             bufferManagerInfo->numOfDiskWrites++;
