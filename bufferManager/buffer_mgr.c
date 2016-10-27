@@ -345,6 +345,12 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page) {
     return  RC_OK;
 }
 
+RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
+            const PageNumber pageNum){
+
+    CHECK_BUFFER_AND_PAGE_VALIDITY(bm, page);
+}
+
 /**
  * Returns an array of PageNumbers (of size numPages) where the ith element is the number of the page stored in the ith page frame.
  * An empty page frame is represented using the constant NO_PAGE
