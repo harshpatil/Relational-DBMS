@@ -11,6 +11,8 @@
 #include "storage_mgr.h"
 
 #define MAX_FRAMES 100
+#define MAX_PAGES 10000
+
 
 // convenience macros
 #define MAKE_BUFFER_MANAGER_INFO()					\
@@ -64,6 +66,7 @@ typedef struct BufferManagerInfo{
     int frameToPageId[MAX_FRAMES]; //Array of size MAX_FRAMES, at each index it stores the pageId stored at that frame index.
     bool dirtyFlagPerFrame[MAX_FRAMES]; //Array of size MAX_FRAMES, at each index it stores the dirty flag corresponding to page stored at that frame index.
     int pinCountsPerFrame[MAX_FRAMES]; //Array of size MAX_FRAMES, at each index it stores the pin count corresponding to the page stored at that frame index.
+    int pageIdToFrameIndex[MAX_PAGES]; //Array of size MAX_PAGES, at each index it stores the FRAME ID in which the corresponding page is stored.
     FrameNode *headFrameNode; //Pointer to the head frameNode.
     FrameNode *tailFrameNode; //Pointer to the tail frameNode.
 }BufferManagerInfo;
@@ -121,6 +124,7 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
     memset(bmInfo->frameToPageId,NO_PAGE,MAX_FRAMES*sizeof(int));
     memset(bmInfo->dirtyFlagPerFrame,false,MAX_FRAMES*sizeof(bool));
     memset(bmInfo->pinCountsPerFrame,0,MAX_FRAMES*sizeof(int));
+    memset(bmInfo->pageIdToFrameIndex,NO_PAGE,MAX_PAGES*sizeof(int));
 
     bmInfo->headFrameNode = bmInfo->tailFrameNode = newNode(0);
     for(int i = 1; i <numPages; i++){
@@ -258,7 +262,6 @@ RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page){
  * @return
  */
 FrameNode *findFrameNodeByPageNum(FrameNode *currentNode, PageNumber num) {
-
     while(currentNode!=NULL){
         if(currentNode->pageNumber==num){
             return currentNode;
