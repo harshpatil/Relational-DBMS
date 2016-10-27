@@ -73,7 +73,7 @@ FrameNode *findFrameNodeByPageNum(FrameNode *pNode, PageNumber num);
 /* To create a new frame node.*/
 FrameNode *newNode(int i){
 
-    FrameNode *node = MAKE_FRAME_NODE;
+    FrameNode *node = MAKE_FRAME_NODE();
     node->pageNumber = NO_PAGE;
     node->frameNumber = i;
     node->dirty = 0;
@@ -119,8 +119,8 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
     bmInfo->numOfDiskWrites=0;
 
     memset(bmInfo->frameToPageId,NO_PAGE,MAX_FRAMES*sizeof(int));
-    memset(bmInfo->dirtyFlagPerFrame,NO_PAGE,MAX_FRAMES*sizeof(int));
-    memset(bmInfo->pinCountsPerFrame,NO_PAGE,MAX_FRAMES*sizeof(int));
+    memset(bmInfo->dirtyFlagPerFrame,false,MAX_FRAMES*sizeof(bool));
+    memset(bmInfo->pinCountsPerFrame,0,MAX_FRAMES*sizeof(int));
 
     bmInfo->headFrameNode = bmInfo->tailFrameNode = newNode(0);
     for(int i = 1; i <numPages; i++){
@@ -184,7 +184,14 @@ RC shutdownBufferPool(BM_BufferPool *const bm){
 /**
  * This mthod writes al dirty pages in the pool back to disk.
  * 1) It checks for the validity of the input parameters.
- * 2)
+ * 2) It opens the page file.
+ * 3) It iterates through the frame nodes, checking for dirty frames.
+ * 4) When a frame is dirty, it will write the contents back to disk.
+ * 5) Marks the frame as non dirty.
+ * 6) Marks it non dirty in the array dirtyFlagPerFrame.
+ * 7) Once all the dirty frames are written, it closes the page file.
+ *
+ * Returns RC_OK on success.
  * @param bm
  * @return
  */
@@ -195,13 +202,12 @@ RC forceFlushPool(BM_BufferPool *const bm){
     BufferManagerInfo *bufferManagerInfo = (BufferManagerInfo *)bm->mgmtData;
     FrameNode *current = bufferManagerInfo->headFrameNode;
     SM_FileHandle fileHandle;
-
-    if (openPageFile ((char *)(bm->pageFile), &fileHandle) != RC_OK){
-        return RC_FILE_NOT_FOUND;
-    }
     int status;
+    if ((status=openPageFile ((char *)(bm->pageFile), &fileHandle)) != RC_OK){
+        return status;
+    }
     while (current != NULL) {
-        if (current->dirty == true) {
+        if (current->dirty == true && current->fixCount==0) {
             if((status=writeBlock(current->pageNumber, &fileHandle, current->data)) != RC_OK){
                 return status;
             }
@@ -215,6 +221,19 @@ RC forceFlushPool(BM_BufferPool *const bm){
     return RC_OK;
 }
 
+/**
+ * This method marks the given page as dirty.
+ * 1)It checks for validity of the inputs.
+ * 2)It loops through the buffer pool, searching for the frame storing this page.
+ * 3) If page isnot found it returns an error.
+ * 4) Else it marks the FrameNode storing this page as dirty.
+ * 5) It updates the "dirtyFlagPerFrame" array marking the frame corresponding to the page as dirty.
+ *
+ * Returns RC_OK on success.
+ * @param bm
+ * @param page
+ * @return
+ */
 RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page){
 
     CHECK_BUFFER_AND_PAGE_VALIDITY(bm, page);
@@ -230,6 +249,14 @@ RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page){
     return RC_OK;
 }
 
+
+
+/**
+ * Finds the frame corresponding to the page number passed.
+ * @param currentNode
+ * @param num
+ * @return
+ */
 FrameNode *findFrameNodeByPageNum(FrameNode *currentNode, PageNumber num) {
 
     while(currentNode!=NULL){
@@ -241,6 +268,18 @@ FrameNode *findFrameNodeByPageNum(FrameNode *currentNode, PageNumber num) {
     return NULL;
 }
 
+/**
+ * This method unpins the page.
+ * 1) It checks the input for validity.
+ * 2) It finds the FrameNode corresponding to the page passed.
+ * 3) It checks if the fixcount is greater than 0, if yes decerements the fix count. It will update the array pinCountsPerFrame with the updated fix count.
+ * 4) Else it will return an error message RC_BM_INVALID_UNPIN.
+ *
+ * Returns RC_OK on success.
+ * @param bm
+ * @param page
+ * @return
+ */
 RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page){
 
     CHECK_BUFFER_AND_PAGE_VALIDITY(bm, page);
@@ -254,55 +293,103 @@ RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page){
 
     if(frameNodeToUnpin->fixCount > 0){
         frameNodeToUnpin->fixCount--;
+        bufferManagerInfo->pinCountsPerFrame[frameNodeToUnpin->frameNumber] =  frameNodeToUnpin->fixCount;
     } else{
-        return RC_BM_INVALID_PAGE;
+        return RC_BM_INVALID_UNPIN;
     }
 
     return RC_OK;
 }
 
-RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page){
+/**
+ * This method will write the contents of the page back to disk.
+ * 1) It will find the frame node corresponding to the page number.
+ * 2) If the page is not found in the frame node list, it will return an error "RC_BM_INVALID_PAGE".
+ * 3) Else it will open the pageFile.
+ * 4) It writes the data of that page back to disk.
+ * 5) Increment numOfDiskWrites.
+ * 6) If the fic count is zero, set dirty flag back to false.
+ * 7) Closes the page file.
+ *
+ * Returns RC_OK on success.
+ * @param bm
+ * @param page
+ * @return
+ */
+RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page) {
 
     CHECK_BUFFER_AND_PAGE_VALIDITY(bm, page);
 
-    BufferManagerInfo* bmInfo = bm->mgmtData;
+    BufferManagerInfo *bmInfo = bm->mgmtData;
     FrameNode *frameToFlush;
     SM_FileHandle *fileHandle;
     int status;
 
-    if((frameToFlush=findFrameNodeByPageNum(bmInfo->headFrameNode,page->pageNum))==NULL){
+    if ((frameToFlush = findFrameNodeByPageNum(bmInfo->headFrameNode, page->pageNum)) == NULL) {
         return RC_BM_INVALID_PAGE;
     }
-    if((status=openPageFile(bm->pageFile,fileHandle)) != RC_OK){
+
+    if ((status = openPageFile(bm->pageFile, fileHandle)) != RC_OK) {
         return status;
     }
-    if((status=writeBlock(frameToFlush->pageNumber,fileHandle,frameToFlush->data)) != RC_OK){
+    if ((status = writeBlock(frameToFlush->pageNumber, fileHandle, frameToFlush->data)) != RC_OK) {
         return status;
     }
     (bmInfo->numOfDiskWrites)++;
-    bmInfo->dirtyFlagPerFrame[frameToFlush->frameNumber]=true;
+    if (frameToFlush->fixCount == 0) {
+        frameToFlush->dirty = false;
+        bmInfo->dirtyFlagPerFrame[frameToFlush->frameNumber] = false;
+    }
     closePageFile(&fileHandle);
 
     return  RC_OK;
 }
 
+/**
+ * Returns an array of PageNumbers (of size numPages) where the ith element is the number of the page stored in the ith page frame.
+ * An empty page frame is represented using the constant NO_PAGE
+ * @param bm
+ * @return
+ */
 PageNumber *getFrameContents (BM_BufferPool *const bm){
     return ((BufferManagerInfo*)bm->mgmtData)->frameToPageId;
 }
 
+/**
+ * Returns an array of bools (of size numPages) where the ith element is TRUE if the page stored in the ith page frame is dirty.
+ * Empty page frames are considered as clean.
+ * @param bm
+ * @return
+ */
 bool *getDirtyFlags (BM_BufferPool *const bm){
     return ((BufferManagerInfo*)bm->mgmtData)->dirtyFlagPerFrame;
 }
 
+/**
+ * Returns an array of ints (of size numPages) where the ith element is the fix count of the page stored in the ith page frame.
+ * Return 0 for empty page frames.
+ * @param bm
+ * @return
+ */
 int *getFixCounts (BM_BufferPool *const bm){
     return ((BufferManagerInfo*)bm->mgmtData)->pinCountsPerFrame;
 }
 
+/**
+ * Returns the number of pages that have been read from disk since a buffer pool has been initialized.
+ * @param bm
+ * @return
+ */
 int getNumReadIO (BM_BufferPool *const bm)
 {
     return ((BufferManagerInfo *)bm->mgmtData)->numOfDiskReads;
 }
 
+/**
+ * Returns the number of pages written to the page file since the buffer pool has been initialized.
+ * @param bm
+ * @return
+ */
 int getNumWriteIO (BM_BufferPool *const bm)
 {
     return ((BufferManagerInfo *)bm->mgmtData)->numOfDiskWrites;
