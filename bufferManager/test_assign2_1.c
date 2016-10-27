@@ -46,9 +46,9 @@ main (void)
   testName = "";
 
   testCreatingAndReadingDummyPages();
- // testReadPage();
-  //testFIFO();
-  //testLRU();
+  testReadPage();
+  testFIFO();
+//  testLRU();
 }
 
 // create n pages with content "Page X" and read them back to check whether the content is right
@@ -68,6 +68,8 @@ testCreatingAndReadingDummyPages (void)
   checkDummyPages(bm, 100);
 
   CHECK(destroyPageFile("testbuffer.bin"));
+
+  printf("Test case passed");
 
   free(bm);
   TEST_DONE();
