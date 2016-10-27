@@ -640,55 +640,6 @@ int pinPageLRU(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNum
     return RC_OK;
 }
 
-int pinPageFIFO1(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber num) {
-    FrameNode *found;
-    BufferManagerInfo *bufferManagerInfo = (BufferManagerInfo *)bm->mgmtData;
-
-    if((found = pageInMemory(bm, page, num)) != NULL){
-        //moveFrameToHead(bufferManagerInfo, found);
-        return RC_OK;
-    }
-    if((bufferManagerInfo->framesFilled) < bm->numPages){
-        found = bufferManagerInfo->headFrameNode;
-
-        while(found != NULL && found->pageNumber != NO_PAGE){
-            found = found->next;
-        }
-        bufferManagerInfo->framesFilled++;
-        RC status;
-        if((status = updateFrameContentsWithCorrectDataOnUsingEmptyFrame(bm, found, page, num)) != RC_OK){
-            return status;
-        }
-        updateStats(found,bufferManagerInfo,page,num);
-        moveFrameToHead(bufferManagerInfo, found);
-
-    } else{
-
-        found = bufferManagerInfo->tailFrameNode;
-        int frameToBeReplaced = -1;
-        while(found != NULL ){
-            if(found->fixCount == 0){
-                frameToBeReplaced = found->frameNumber;
-                break;
-            }
-            found = found->previous;
-        }
-
-        /* If reached to head, it means no frames with fixed count 0 available.*/
-        if (frameToBeReplaced == -1){
-            return RC_BM_TOO_MANY_CONNECTIONS;
-        }
-        RC status;
-        if((status = updateFrameContentsWithCorrectDataOnReplace(bm, found, page, num)) != RC_OK){
-            return status;
-        }
-        updateStats(found,bufferManagerInfo,page,num);
-        moveFrameToHead(bufferManagerInfo, found);
-
-    }
-    return RC_OK;
-}
-
 RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
             const PageNumber pageNum){
     CHECK_BUFFER_VALIDITY(bm);
@@ -697,7 +648,7 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
     }
     int status;
     if(bm->strategy==RS_FIFO){
-        status = pinPageFIFO1(bm,page,pageNum);
+        status = pinPageFIFO(bm,page,pageNum);
     }else if(bm->strategy==RS_LRU){
         status = pinPageLRU(bm,page,pageNum);
     }else{
