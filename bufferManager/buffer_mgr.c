@@ -326,17 +326,17 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page) {
 
     BufferManagerInfo *bmInfo = bm->mgmtData;
     FrameNode *frameToFlush;
-    SM_FileHandle fileHandle;
+    SM_FileHandle *fileHandle;
     int status;
 
     if ((frameToFlush = findFrameNodeByPageNum(bmInfo->headFrameNode, page->pageNum)) == NULL) {
         return RC_BM_INVALID_PAGE;
     }
 
-    if ((status = openPageFile(bm->pageFile, &fileHandle)) != RC_OK) {
+    if ((status = openPageFile(bm->pageFile, fileHandle)) != RC_OK) {
         return status;
     }
-    if ((status = writeBlock(frameToFlush->pageNumber, &fileHandle, frameToFlush->data)) != RC_OK) {
+    if ((status = writeBlock(frameToFlush->pageNumber, fileHandle, frameToFlush->data)) != RC_OK) {
         return status;
     }
     (bmInfo->numOfDiskWrites)++;
@@ -349,35 +349,6 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page) {
     return  RC_OK;
 }
 
-void updateInfoFrameInBuffer(FrameNode *findFrameNode, BufferManagerInfo *bufferManagerInfo ,BM_PageHandle *const page, const PageNumber num){
-    findFrameNode->fixCount++;
-    bufferManagerInfo->pinCountsPerFrame[findFrameNode->frameNumber] = findFrameNode->fixCount;
-    page->pageNum = num;
-    page->data = findFrameNode->data;
-}
-
-FrameNode* findFreeFrameNode(FrameNode *current) {
-    while(current != NULL && current->pageNumber != NO_PAGE){
-        current = current->next;
-    }
-    return current;
-}
-
-void updateNewFrameStats(FrameNode *temp, BufferManagerInfo *bufferManagerInfo, BM_PageHandle *const page,PageNumber num) {
-    temp->fixCount = 1;
-    temp->dirty = false;
-    temp->pageNumber=num;
-
-    bufferManagerInfo->numOfDiskReads++;
-    bufferManagerInfo->pinCountsPerFrame[temp->frameNumber] = temp->fixCount;
-    bufferManagerInfo->dirtyFlagPerFrame[temp->frameNumber] = false;
-    bufferManagerInfo->frameToPageId[temp->frameNumber] = num;
-    bufferManagerInfo->pageIdToFrameIndex[num] = temp->frameNumber;
-
-    page->pageNum = num;
-    page->data = temp->data;
-}
-
 int pinPageFIFO(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber num) {
 
     FrameNode *findFrameNode;
@@ -387,11 +358,20 @@ int pinPageFIFO(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNu
     int status;
 
     if((findFrameNode = findFrameNodeByPageNum(bufferManagerInfo->headFrameNode, num)) != NULL){
-        updateInfoFrameInBuffer(findFrameNode,bufferManagerInfo,page,num);
+        findFrameNode->fixCount++;
+        bufferManagerInfo->pinCountsPerFrame[findFrameNode->frameNumber] = findFrameNode->fixCount;
+        page->pageNum = num;
+        page->data = findFrameNode->data;
         return RC_OK;
     }
     else if(bufferManagerInfo->framesFilled < bm->numPages){
-        FrameNode *current =  findFreeFrameNode(bufferManagerInfo->headFrameNode);
+
+        FrameNode *current =  bufferManagerInfo->headFrameNode;
+        int frameNumber=0;
+        while(current != NULL && current->pageNumber != NO_PAGE){
+            current = current->next;
+            frameNumber++;
+        }
         if((status = openPageFile(bm->pageFile, &fileHandle)) != RC_OK){
             return status;
         }
@@ -402,31 +382,40 @@ int pinPageFIFO(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNu
             return status;
         }
         if(current==bufferManagerInfo->tailFrameNode){
+
             bufferManagerInfo->tailFrameNode = current->previous;
             bufferManagerInfo->tailFrameNode->next = NULL;
-
             FrameNode *temp = bufferManagerInfo->headFrameNode;
             current->previous = NULL;
             current->next = bufferManagerInfo->headFrameNode;
             bufferManagerInfo->headFrameNode = current;
             temp->previous = current;
         }else if(current!=bufferManagerInfo->headFrameNode){
+
             current->next->previous = current->previous;
             current->previous->next = current->next;
-
             FrameNode *temp = bufferManagerInfo->headFrameNode;
             current->previous = NULL;
             current->next = bufferManagerInfo->headFrameNode;
             bufferManagerInfo->headFrameNode = current;
             temp->previous = current;
         }
+        current->fixCount = 1;
+        current->dirty=false;
+        current->pageNumber=num;
         bufferManagerInfo->framesFilled++;
+        bufferManagerInfo->numOfDiskReads++;
 
-        updateNewFrameStats(current,bufferManagerInfo,page,num);
+        bufferManagerInfo->pinCountsPerFrame[current->frameNumber] = current->fixCount;
+        bufferManagerInfo->dirtyFlagPerFrame[current->frameNumber] = false;
+        bufferManagerInfo->frameToPageId[current->frameNumber] = num;
+        bufferManagerInfo->pageIdToFrameIndex[num] = current->frameNumber;
+
+        page->pageNum = num;
+        page->data = current->data;
         return RC_OK;
     }
     else{
-
         int frameToBeReplaced = -1;
         FrameNode *temp = bufferManagerInfo->tailFrameNode;
         while(temp!=NULL){
@@ -471,9 +460,15 @@ int pinPageFIFO(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNu
         bufferManagerInfo->headFrameNode->previous=temp;
         bufferManagerInfo->headFrameNode = temp;
 
-        updateNewFrameStats(temp,bufferManagerInfo,page,num);
+        temp->fixCount = 1;
+        temp->pageNumber=num;
+        bufferManagerInfo->pinCountsPerFrame[temp->frameNumber] = temp->fixCount;
+        bufferManagerInfo->frameToPageId[temp->frameNumber] = num;
+        bufferManagerInfo->numOfDiskReads++;
+        bufferManagerInfo->pageIdToFrameIndex[num] = temp->frameNumber;
 
-
+        page->pageNum = num;
+        page->data = temp->data;
         return RC_OK;
     }
 }
@@ -481,7 +476,6 @@ int pinPageFIFO(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNu
 int pinPageLRU(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber num) {
     return 0;
 }
-
 
 RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
             const PageNumber pageNum){
