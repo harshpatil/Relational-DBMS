@@ -349,6 +349,21 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page) {
     return  RC_OK;
 }
 
+/**
+ * This method pins page when the replacement strategy is FIFO.
+ *
+ * 1) It checks if the page is existing in the buffer pool.
+ * 2) If yes, it returns this frame increasing the pin count.
+ * 3) Else it will check if there is an empty frame in the pool which can be used.
+ * 4) If yes, it will use that frame node, read data from disk into that frame. Move that frame to the head of the list, and increment the fix count.
+ * 5) Else it will check for a frame to replace. It will navigate from the tail and keep iterating till it finds a frame which has a fix count of zero.
+ *    It will then write the contents of this frame back to disk if it is dirty, and read the contents of the page to be returned from the disk. It will
+ *    then increment the fix count.
+ * @param bm
+ * @param page
+ * @param num
+ * @return
+ */
 int pinPageFIFO(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber num) {
 
     FrameNode *findFrameNode;
@@ -575,7 +590,6 @@ RC updateFrameContentsWithCorrectDataOnUsingEmptyFrame(BM_BufferPool *const bm, 
 }
 
 void updateStats(FrameNode *temp,BufferManagerInfo *bufferManagerInfo,BM_PageHandle *const page,const PageNumber num) {
-    /* provide the client with the data and details of page*/
     page->pageNum = num;
     page->data = temp->data;
 
@@ -591,6 +605,21 @@ void updateStats(FrameNode *temp,BufferManagerInfo *bufferManagerInfo,BM_PageHan
 
 }
 
+/**
+ * This method pins page when the replacement strategy is LRU.
+ *
+ * 1) It checks if the page is existing in the buffer pool.
+ * 2) If yes, it returns this frame increasing the pin count. And also moves this frame to the head of the list.
+ * 3) Else it will check if there is an empty frame in the pool which can be used.
+ * 4) If yes, it will use that frame node, read data from disk into that frame. Move that frame to the head of the list, and increment the fix count.
+ * 5) Else it will check for a frame to replace. It will navigate from the tail and keep iterating till it finds a frame which has a fix count of zero.
+ *    It will then write the contents of this frame back to disk if it is dirty, and read the contents of the page to be returned from the disk. It will
+ *    then increment the fix count.
+ * @param bm
+ * @param page
+ * @param num
+ * @return
+ */
 int pinPageLRU(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber num) {
     FrameNode *found;
     BufferManagerInfo *bufferManagerInfo = (BufferManagerInfo *)bm->mgmtData;
@@ -640,6 +669,13 @@ int pinPageLRU(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNum
     return RC_OK;
 }
 
+/**
+ * Implements FIFO and LRU logic
+ * @param bm
+ * @param page
+ * @param pageNum
+ * @return
+ */
 RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
             const PageNumber pageNum){
     CHECK_BUFFER_VALIDITY(bm);

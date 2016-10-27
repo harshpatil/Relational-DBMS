@@ -147,7 +147,24 @@ Note : The frame number of a node is not dependent on the position of the node i
               vii) Closes the page file.
              viii) Returns RC_OK on success.
 
-7) pinPage :
+7) pinPage : Implements FIFO and LRU logic.
+             FIFO :
+             1) It checks if the page is existing in the buffer pool.
+             2) If yes, it returns this frame increasing the pin count.
+             3) Else it will check if there is an empty frame in the pool which can be used.
+             4) If yes, it will use that frame node, read data from disk into that frame. Move that frame to the head of the list, and increment the fix count.
+             5) Else it will check for a frame to replace. It will navigate from the tail and keep iterating till it finds a frame which has a fix count of zero.
+                It will then write the contents of this frame back to disk if it is dirty, and read the contents of the page to be returned from the disk. It will
+                then increment the fix count.
+
+             LRU :
+             1) It checks if the page is existing in the buffer pool.
+             2) If yes, it returns this frame increasing the pin count. And also moves this frame to the head of the list.
+             3) Else it will check if there is an empty frame in the pool which can be used.
+             4) If yes, it will use that frame node, read data from disk into that frame. Move that frame to the head of the list, and increment the fix count.
+             5) Else it will check for a frame to replace. It will navigate from the tail and keep iterating till it finds a frame which has a fix count of zero.
+                It will then write the contents of this frame back to disk if it is dirty, and read the contents of the page to be returned from the disk. It will
+                then increment the fix count.
 
 8) getFrameContents : Returns an array of PageNumbers (of size numPages) where the ith element is the number of the page stored in the ith page frame.
                       An empty page frame is represented using the constant NO_PAGE.
