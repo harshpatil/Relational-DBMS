@@ -46,15 +46,16 @@ main (void)
   testName = "";
 
   testCreatingAndReadingDummyPages();
-  testReadPage();
-  testFIFO();
-  testLRU();
+ // testReadPage();
+  //testFIFO();
+  //testLRU();
 }
 
 // create n pages with content "Page X" and read them back to check whether the content is right
 void
 testCreatingAndReadingDummyPages (void)
 {
+  destroyPageFile("testbuffer.bin");
   BM_BufferPool *bm = MAKE_POOL();
   testName = "Creating and Reading Back Dummy Pages";
 
@@ -63,8 +64,8 @@ testCreatingAndReadingDummyPages (void)
   createDummyPages(bm, 22);
   checkDummyPages(bm, 20);
 
-//  createDummyPages(bm, 10000);
-//  checkDummyPages(bm, 10000);
+  createDummyPages(bm, 100);
+  checkDummyPages(bm, 100);
 
   CHECK(destroyPageFile("testbuffer.bin"));
 
