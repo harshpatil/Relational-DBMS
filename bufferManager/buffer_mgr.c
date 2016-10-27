@@ -326,17 +326,17 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page) {
 
     BufferManagerInfo *bmInfo = bm->mgmtData;
     FrameNode *frameToFlush;
-    SM_FileHandle *fileHandle;
+    SM_FileHandle fileHandle;
     int status;
 
     if ((frameToFlush = findFrameNodeByPageNum(bmInfo->headFrameNode, page->pageNum)) == NULL) {
         return RC_BM_INVALID_PAGE;
     }
 
-    if ((status = openPageFile(bm->pageFile, fileHandle)) != RC_OK) {
+    if ((status = openPageFile(bm->pageFile, &fileHandle)) != RC_OK) {
         return status;
     }
-    if ((status = writeBlock(frameToFlush->pageNumber, fileHandle, frameToFlush->data)) != RC_OK) {
+    if ((status = writeBlock(frameToFlush->pageNumber, &fileHandle, frameToFlush->data)) != RC_OK) {
         return status;
     }
     (bmInfo->numOfDiskWrites)++;
@@ -413,6 +413,7 @@ int pinPageFIFO(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNu
 
         page->pageNum = num;
         page->data = current->data;
+        closePageFile(&fileHandle);
         return RC_OK;
     }
     else{
@@ -469,12 +470,174 @@ int pinPageFIFO(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNu
 
         page->pageNum = num;
         page->data = temp->data;
+        closePageFile(&fileHandle);
+
         return RC_OK;
     }
 }
 
+
+FrameNode *pageInMemory(BM_BufferPool *const bm, BM_PageHandle *const page,const PageNumber pageNum){
+
+    FrameNode *findFrameNode;
+    BufferManagerInfo *bufferManagerInfo = (BufferManagerInfo *)bm->mgmtData;
+
+    if((findFrameNode = findFrameNodeByPageNum(bufferManagerInfo->headFrameNode, pageNum)) == NULL){
+        return NULL;
+    }
+    page->pageNum = pageNum;
+    page->data = findFrameNode->data;
+    findFrameNode->fixCount++;
+    bufferManagerInfo->pinCountsPerFrame[findFrameNode->frameNumber] = findFrameNode->fixCount;
+    return findFrameNode;
+}
+
+void moveFrameToHead(BufferManagerInfo* bufferManagerInfo, FrameNode *updateNode){
+    FrameNode* headNode = bufferManagerInfo->headFrameNode;
+    FrameNode* tailNode = bufferManagerInfo->tailFrameNode;
+    if(updateNode == headNode || headNode == NULL){
+        return;
+    }
+    else if(updateNode == tailNode){
+        FrameNode *temp = tailNode->previous;
+        temp->next = NULL;
+        bufferManagerInfo->tailFrameNode = temp;
+    }
+    else{
+        updateNode->previous->next = updateNode->next;
+        updateNode->next->previous = updateNode->previous;
+    }
+
+    updateNode->next = headNode;
+    headNode->previous = updateNode;
+    updateNode->previous = NULL;
+
+    bufferManagerInfo->headFrameNode = updateNode;
+    return;
+}
+
+RC updateFrameContentsWithCorrectDataOnReplace(BM_BufferPool *const bm, FrameNode *found, BM_PageHandle *const page, const PageNumber pageNum){
+
+    SM_FileHandle fh;
+    BufferManagerInfo *info = (BufferManagerInfo *)bm->mgmtData;
+    RC status;
+
+    if ((status = openPageFile ((char *)(bm->pageFile), &fh)) != RC_OK){
+        return status;
+    }
+
+    if(found->dirty == 1){
+
+        if((status = writeBlock(found->pageNumber,&fh, found->data)) != RC_OK){
+            return status;
+        }
+        (info->numOfDiskWrites)++;
+    }
+
+    if((status = ensureCapacity(pageNum+1, &fh)) != RC_OK){
+        return status;
+    }
+
+    if((status = readBlock(pageNum, &fh, found->data)) != RC_OK){
+        return status;
+    }
+    info->numOfDiskReads++;
+
+    closePageFile(&fh);
+
+    return RC_OK;
+
+}
+
+RC updateFrameContentsWithCorrectDataOnUsingEmptyFrame(BM_BufferPool *const bm, FrameNode *found, BM_PageHandle *const page, const PageNumber pageNum){
+
+    SM_FileHandle fh;
+    BufferManagerInfo *info = (BufferManagerInfo *)bm->mgmtData;
+    RC status;
+
+    if ((status = openPageFile ((char *)(bm->pageFile), &fh)) != RC_OK){
+        return status;
+    }
+
+    if((status = ensureCapacity(pageNum+1, &fh)) != RC_OK){
+        return status;
+    }
+
+    if((status = readBlock(pageNum, &fh, found->data)) != RC_OK){
+        return status;
+    }
+    info->numOfDiskReads++;
+
+    closePageFile(&fh);
+
+    return RC_OK;
+
+}
+
+void updateStats(FrameNode *temp,BufferManagerInfo *bufferManagerInfo,BM_PageHandle *const page,const PageNumber num) {
+    /* provide the client with the data and details of page*/
+    page->pageNum = num;
+    page->data = temp->data;
+
+    temp->fixCount = 1;
+    temp->dirty=false;
+    temp->pageNumber=num;
+
+    bufferManagerInfo->pinCountsPerFrame[temp->frameNumber] = temp->fixCount;
+    bufferManagerInfo->dirtyFlagPerFrame[temp->frameNumber] = false;
+    bufferManagerInfo->frameToPageId[temp->frameNumber] = num;
+    bufferManagerInfo->pageIdToFrameIndex[num] = temp->frameNumber;
+
+
+}
+
 int pinPageLRU(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber num) {
-    return 0;
+    FrameNode *found;
+    BufferManagerInfo *bufferManagerInfo = (BufferManagerInfo *)bm->mgmtData;
+
+    if((found = pageInMemory(bm, page, num)) != NULL){
+        moveFrameToHead(bufferManagerInfo, found);
+        return RC_OK;
+    }
+    if((bufferManagerInfo->framesFilled) < bm->numPages){
+        found = bufferManagerInfo->headFrameNode;
+
+        while(found != NULL && found->pageNumber != NO_PAGE){
+            found = found->next;
+        }
+        bufferManagerInfo->framesFilled++;
+        RC status;
+        if((status = updateFrameContentsWithCorrectDataOnUsingEmptyFrame(bm, found, page, num)) != RC_OK){
+            return status;
+        }
+        updateStats(found,bufferManagerInfo,page,num);
+        moveFrameToHead(bufferManagerInfo, found);
+
+    } else{
+
+        found = bufferManagerInfo->tailFrameNode;
+        int frameToBeReplaced = -1;
+        while(found != NULL ){
+            if(found->fixCount == 0){
+                frameToBeReplaced = found->frameNumber;
+                break;
+            }
+            found = found->previous;
+        }
+
+        /* If reached to head, it means no frames with fixed count 0 available.*/
+        if (frameToBeReplaced == -1){
+            return RC_BM_TOO_MANY_CONNECTIONS;
+        }
+        RC status;
+        if((status = updateFrameContentsWithCorrectDataOnReplace(bm, found, page, num)) != RC_OK){
+            return status;
+        }
+        updateStats(found,bufferManagerInfo,page,num);
+        moveFrameToHead(bufferManagerInfo, found);
+
+    }
+    return RC_OK;
 }
 
 RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
@@ -488,6 +651,8 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
         status = pinPageFIFO(bm,page,pageNum);
     }else if(bm->strategy==RS_LRU){
         status = pinPageLRU(bm,page,pageNum);
+    }else{
+        status = RC_BM_UNSUPPORTED_PAGE_STRATEGY;
     }
     return status;
 }

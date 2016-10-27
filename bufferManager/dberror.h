@@ -40,6 +40,7 @@ typedef int RC;
 #define RC_BM_POOL_IN_USE 403
 #define RC_BM_INVALID_UNPIN 404
 #define RC_BM_TOO_MANY_CONNECTIONS 405
+#define RC_BM_UNSUPPORTED_PAGE_STRATEGY 406
 
 /* holder for error messages */
 extern char *RC_message;
