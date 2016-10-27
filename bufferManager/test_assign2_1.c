@@ -11,7 +11,7 @@
 // var to store the current test's name
 char *testName;
 
-// check whether two the content of a buffer pool is the same as an expected content 
+// check whether two the content of a buffer pool is the same as an expected content
 // (given in the format produced by sprintPoolContent)
 #define ASSERT_EQUALS_POOL(expected,bm,message)			        \
   do {									\
@@ -39,8 +39,8 @@ static void testFIFO (void);
 static void testLRU (void);
 
 // main method
-int 
-main (void) 
+int
+main (void)
 {
   initStorageManager();
   testName = "";
@@ -48,56 +48,52 @@ main (void)
   testCreatingAndReadingDummyPages();
   testReadPage();
   testFIFO();
-//  testLRU();
+  testLRU();
 }
 
 // create n pages with content "Page X" and read them back to check whether the content is right
 void
 testCreatingAndReadingDummyPages (void)
 {
-  destroyPageFile("testbuffer.bin");
   BM_BufferPool *bm = MAKE_POOL();
   testName = "Creating and Reading Back Dummy Pages";
-
   CHECK(createPageFile("testbuffer.bin"));
 
   createDummyPages(bm, 22);
   checkDummyPages(bm, 20);
 
-  createDummyPages(bm, 100);
-  checkDummyPages(bm, 100);
+  createDummyPages(bm, 10000);
+  checkDummyPages(bm, 10000);
 
   CHECK(destroyPageFile("testbuffer.bin"));
-
-  printf("Test case passed");
 
   free(bm);
   TEST_DONE();
 }
 
 
-void 
+void
 createDummyPages(BM_BufferPool *bm, int num)
 {
   int i;
   BM_PageHandle *h = MAKE_PAGE_HANDLE();
 
   CHECK(initBufferPool(bm, "testbuffer.bin", 3, RS_FIFO, NULL));
-  
+
   for (i = 0; i < num; i++)
-    {
-      CHECK(pinPage(bm, h, i));
-      sprintf(h->data, "%s-%i", "Page", h->pageNum);
-      CHECK(markDirty(bm, h));
-      CHECK(unpinPage(bm,h));
-    }
+  {
+    CHECK(pinPage(bm, h, i));
+    sprintf(h->data, "%s-%i", "Page", h->pageNum);
+    CHECK(markDirty(bm, h));
+    CHECK(unpinPage(bm,h));
+  }
 
   CHECK(shutdownBufferPool(bm));
 
   free(h);
 }
 
-void 
+void
 checkDummyPages(BM_BufferPool *bm, int num)
 {
   int i;
@@ -107,14 +103,14 @@ checkDummyPages(BM_BufferPool *bm, int num)
   CHECK(initBufferPool(bm, "testbuffer.bin", 3, RS_FIFO, NULL));
 
   for (i = 0; i < num; i++)
-    {
-      CHECK(pinPage(bm, h, i));
+  {
+    CHECK(pinPage(bm, h, i));
 
-      sprintf(expected, "%s-%i", "Page", h->pageNum);
-      ASSERT_EQUALS_STRING(expected, h->data, "reading back dummy page content");
+    sprintf(expected, "%s-%i", "Page", h->pageNum);
+    ASSERT_EQUALS_STRING(expected, h->data, "reading back dummy page content");
 
-      CHECK(unpinPage(bm,h));
-    }
+    CHECK(unpinPage(bm,h));
+  }
 
   CHECK(shutdownBufferPool(bm));
 
@@ -131,7 +127,7 @@ testReadPage ()
 
   CHECK(createPageFile("testbuffer.bin"));
   CHECK(initBufferPool(bm, "testbuffer.bin", 3, RS_FIFO, NULL));
-  
+
   CHECK(pinPage(bm, h, 0));
   CHECK(pinPage(bm, h, 0));
 
@@ -155,18 +151,18 @@ void
 testFIFO ()
 {
   // expected results
-  const char *poolContents[] = { 
-    "[0 0],[-1 0],[-1 0]" , 
-    "[0 0],[1 0],[-1 0]", 
-    "[0 0],[1 0],[2 0]", 
-    "[3 0],[1 0],[2 0]", 
-    "[3 0],[4 0],[2 0]",
-    "[3 0],[4 1],[2 0]",
-    "[3 0],[4 1],[5x0]",
-    "[6x0],[4 1],[5x0]",
-    "[6x0],[4 1],[0x0]",
-    "[6x0],[4 0],[0x0]",
-    "[6 0],[4 0],[0 0]"
+  const char *poolContents[] = {
+          "[0 0],[-1 0],[-1 0]" ,
+          "[0 0],[1 0],[-1 0]",
+          "[0 0],[1 0],[2 0]",
+          "[3 0],[1 0],[2 0]",
+          "[3 0],[4 0],[2 0]",
+          "[3 0],[4 1],[2 0]",
+          "[3 0],[4 1],[5x0]",
+          "[6x0],[4 1],[5x0]",
+          "[6x0],[4 1],[0x0]",
+          "[6x0],[4 0],[0x0]",
+          "[6 0],[4 0],[0 0]"
   };
   const int requests[] = {0,1,2,3,4,4,5,6,0};
   const int numLinRequests = 5;
@@ -185,11 +181,11 @@ testFIFO ()
 
   // reading some pages linearly with direct unpin and no modifications
   for(i = 0; i < numLinRequests; i++)
-    {
-      pinPage(bm, h, requests[i]);
-      unpinPage(bm, h);
-      ASSERT_EQUALS_POOL(poolContents[i], bm, "check pool content");
-    }
+  {
+    pinPage(bm, h, requests[i]);
+    unpinPage(bm, h);
+    ASSERT_EQUALS_POOL(poolContents[i], bm, "check pool content");
+  }
 
   // pin one page and test remainder
   i = numLinRequests;
@@ -198,19 +194,19 @@ testFIFO ()
 
   // read pages and mark them as dirty
   for(i = numLinRequests + 1; i < numLinRequests + numChangeRequests + 1; i++)
-    {
-      pinPage(bm, h, requests[i]);
-      markDirty(bm, h);
-      unpinPage(bm, h);
-      ASSERT_EQUALS_POOL(poolContents[i], bm, "check pool content");
-    }
+  {
+    pinPage(bm, h, requests[i]);
+    markDirty(bm, h);
+    unpinPage(bm, h);
+    ASSERT_EQUALS_POOL(poolContents[i], bm, "check pool content");
+  }
 
   // flush buffer pool to disk
   i = numLinRequests + numChangeRequests + 1;
   h->pageNum = 4;
   unpinPage(bm, h);
   ASSERT_EQUALS_POOL(poolContents[i],bm,"unpin last page");
-  
+
   i++;
   forceFlushPool(bm);
   ASSERT_EQUALS_POOL(poolContents[i],bm,"pool content after flush");
@@ -232,25 +228,25 @@ void
 testLRU (void)
 {
   // expected results
-  const char *poolContents[] = { 
-    // read first five pages and directly unpin them
-    "[0 0],[-1 0],[-1 0],[-1 0],[-1 0]" , 
-    "[0 0],[1 0],[-1 0],[-1 0],[-1 0]", 
-    "[0 0],[1 0],[2 0],[-1 0],[-1 0]",
-    "[0 0],[1 0],[2 0],[3 0],[-1 0]",
-    "[0 0],[1 0],[2 0],[3 0],[4 0]",
-    // use some of the page to create a fixed LRU order without changing pool content
-    "[0 0],[1 0],[2 0],[3 0],[4 0]",
-    "[0 0],[1 0],[2 0],[3 0],[4 0]",
-    "[0 0],[1 0],[2 0],[3 0],[4 0]",
-    "[0 0],[1 0],[2 0],[3 0],[4 0]",
-    "[0 0],[1 0],[2 0],[3 0],[4 0]",
-    // check that pages get evicted in LRU order
-    "[0 0],[1 0],[2 0],[5 0],[4 0]",
-    "[0 0],[1 0],[2 0],[5 0],[6 0]",
-    "[7 0],[1 0],[2 0],[5 0],[6 0]",
-    "[7 0],[1 0],[8 0],[5 0],[6 0]",
-    "[7 0],[9 0],[8 0],[5 0],[6 0]"
+  const char *poolContents[] = {
+          // read first five pages and directly unpin them
+          "[0 0],[-1 0],[-1 0],[-1 0],[-1 0]" ,
+          "[0 0],[1 0],[-1 0],[-1 0],[-1 0]",
+          "[0 0],[1 0],[2 0],[-1 0],[-1 0]",
+          "[0 0],[1 0],[2 0],[3 0],[-1 0]",
+          "[0 0],[1 0],[2 0],[3 0],[4 0]",
+          // use some of the page to create a fixed LRU order without changing pool content
+          "[0 0],[1 0],[2 0],[3 0],[4 0]",
+          "[0 0],[1 0],[2 0],[3 0],[4 0]",
+          "[0 0],[1 0],[2 0],[3 0],[4 0]",
+          "[0 0],[1 0],[2 0],[3 0],[4 0]",
+          "[0 0],[1 0],[2 0],[3 0],[4 0]",
+          // check that pages get evicted in LRU order
+          "[0 0],[1 0],[2 0],[5 0],[4 0]",
+          "[0 0],[1 0],[2 0],[5 0],[6 0]",
+          "[7 0],[1 0],[2 0],[5 0],[6 0]",
+          "[7 0],[1 0],[8 0],[5 0],[6 0]",
+          "[7 0],[9 0],[8 0],[5 0],[6 0]"
   };
   const int orderRequests[] = {3,4,0,2,1};
   const int numLRUOrderChange = 5;
@@ -268,25 +264,25 @@ testLRU (void)
   // reading first five pages linearly with direct unpin and no modifications
   for(i = 0; i < 5; i++)
   {
-      pinPage(bm, h, i);
-      unpinPage(bm, h);
-      ASSERT_EQUALS_POOL(poolContents[snapshot++], bm, "check pool content reading in pages");
+    pinPage(bm, h, i);
+    unpinPage(bm, h);
+    ASSERT_EQUALS_POOL(poolContents[snapshot++], bm, "check pool content reading in pages");
   }
 
   // read pages to change LRU order
   for(i = 0; i < numLRUOrderChange; i++)
   {
-      pinPage(bm, h, orderRequests[i]);
-      unpinPage(bm, h);
-      ASSERT_EQUALS_POOL(poolContents[snapshot++], bm, "check pool content using pages");
+    pinPage(bm, h, orderRequests[i]);
+    unpinPage(bm, h);
+    ASSERT_EQUALS_POOL(poolContents[snapshot++], bm, "check pool content using pages");
   }
 
   // replace pages and check that it happens in LRU order
   for(i = 0; i < 5; i++)
   {
-      pinPage(bm, h, 5 + i);
-      unpinPage(bm, h);
-      ASSERT_EQUALS_POOL(poolContents[snapshot++], bm, "check pool content using pages");
+    pinPage(bm, h, 5 + i);
+    unpinPage(bm, h);
+    ASSERT_EQUALS_POOL(poolContents[snapshot++], bm, "check pool content using pages");
   }
 
   // check number of write IOs

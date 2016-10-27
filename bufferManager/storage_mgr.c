@@ -58,22 +58,20 @@ RC createPageFile (char *fileName){
  * @return
  */
 RC openPageFile (char *fileName, SM_FileHandle *fileHandle){
-
-    if(fopen(fileName,"r") == NULL) {
-        printf("File does not exist !!");
-        return RC_FILE_NOT_FOUND;
-    }
     FILE *filePointer = fopen(fileName, "r+");
-    char *readPage;
-    readPage = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
-    fgets(readPage, PAGE_SIZE, filePointer);
-    readPage = strtok(readPage, "\n");
-    fileHandle->fileName = fileName;
-    fileHandle->totalNumPages = atoi(readPage);
-    fileHandle->curPagePos = 0;
-    fileHandle->mgmtInfo = filePointer;
-    free(readPage);
-    return RC_OK;
+    if(filePointer){
+        char *readPage;
+        readPage = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
+        fgets(readPage, PAGE_SIZE, filePointer);
+        readPage = strtok(readPage, "\n");
+        fileHandle->fileName = fileName;
+        fileHandle->totalNumPages = atoi(readPage);
+        fileHandle->curPagePos = 0;
+        fileHandle->mgmtInfo = filePointer;
+        free(readPage);
+        return RC_OK;
+    }
+    return RC_FILE_NOT_FOUND;
 }
 
 /**
