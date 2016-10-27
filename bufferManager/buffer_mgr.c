@@ -436,7 +436,6 @@ int pinPageFIFO(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNu
             }
             temp = temp->previous;
         }
-       // findFrameToBeReplaced();
         if(frameToBeReplaced == -1){
             return RC_BM_TOO_MANY_CONNECTIONS;
         }
