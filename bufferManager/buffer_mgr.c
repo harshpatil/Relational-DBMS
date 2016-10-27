@@ -478,6 +478,7 @@ int pinPageLRU(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNum
     return 0;
 }
 
+
 RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
             const PageNumber pageNum){
     CHECK_BUFFER_VALIDITY(bm);
