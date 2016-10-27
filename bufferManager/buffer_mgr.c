@@ -286,6 +286,12 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page){
     return  RC_OK;
 }
 
+RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
+            const PageNumber pageNum){
+
+    CHECK_BUFFER_AND_PAGE_VALIDITY(bm, page);
+}
+
 PageNumber *getFrameContents (BM_BufferPool *const bm){
     return ((BufferManagerInfo*)bm->mgmtData)->frameToPageId;
 }
