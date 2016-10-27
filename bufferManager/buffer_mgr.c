@@ -73,7 +73,7 @@ FrameNode *findFrameNodeByPageNum(FrameNode *pNode, PageNumber num);
 /* To create a new frame node.*/
 FrameNode *newNode(int i){
 
-    FrameNode *node = MAKE_FRAME_NODE;
+    FrameNode *node = MAKE_FRAMsE_NODE();
     node->pageNumber = NO_PAGE;
     node->frameNumber = i;
     node->dirty = 0;
