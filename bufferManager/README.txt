@@ -130,9 +130,37 @@ Note : The frame number of a node is not dependent on the position of the node i
                v) It updates the "dirtyFlagPerFrame" array marking the frame corresponding to the page as dirty.
               vi) Returns RC_OK on success.
 
-5)
+5) unpinPage :  This method unpins the page.
+                i) It checks the input for validity.
+               ii) It finds the FrameNode corresponding to the page passed.
+              iii) It checks if the fixcount is greater than 0, if yes decerements the fix count. It will update the array pinCountsPerFrame with the updated fix count.
+               iv) Else it will return an error message RC_BM_INVALID_UNPIN.
+                v) Returns RC_OK on success.
 
+6) forcePage :  This method will write the contents of the page back to disk.
+                i) It will find the frame node corresponding to the page number.
+               ii) If the page is not found in the frame node list, it will return an error "RC_BM_INVALID_PAGE".
+              iii) Else it will open the pageFile.
+               iv) It writes the data of that page back to disk.
+                v) Increment numOfDiskWrites.
+               vi) If the fic count is zero, set dirty flag back to false.
+              vii) Closes the page file.
+             viii) Returns RC_OK on success.
 
+7) pinPage :
+
+8) getFrameContents : Returns an array of PageNumbers (of size numPages) where the ith element is the number of the page stored in the ith page frame.
+                      An empty page frame is represented using the constant NO_PAGE.
+
+9) getDirtyFlags : Returns an array of bools (of size numPages) where the ith element is TRUE if the page stored in the ith page frame is dirty.
+                   Empty page frames are considered as clean.
+
+10) getFixCounts : Returns an array of ints (of size numPages) where the ith element is the fix count of the page stored in the ith page frame.
+                   Return 0 for empty page frames.
+
+11) getNumReadIO : Returns the number of pages that have been read from disk since a buffer pool has been initialized.
+
+12) getNumWriteIO : Returns the number of pages written to the page file since the buffer pool has been initialized.
 ==========================================================================================================================================
                                                 # Contributors #
 ==========================================================================================================================================
