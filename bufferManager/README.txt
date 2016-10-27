@@ -3,12 +3,12 @@
 ==========================================================================================================================================
 
 1) Running with default test cases :
-   Compile : make test_assign_1
-   Run     : ./test_assign_1
+   Compile : make test_assign_2
+   Run     : ./test_assign_2
 
 2) Running with additional test cases :
-   Compile :  make additional_test_cases
-   Run :  ./additional_test_cases
+   Compile :  make additional_test_cases_2
+   Run :  ./additional_test_cases_2
 
 3) For rerun / clean up :
    make clean
