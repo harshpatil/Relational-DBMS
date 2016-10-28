@@ -22,5 +22,8 @@ additional_test_cases.o: additional_test_cases.c
 test_assign_2: test_assign2_1.o buffer_mgr_stat.o buffer_mgr.o storage_mgr.o dberror.o
 	$(CC) -o test_assign_2 test_assign2_1.o buffer_mgr_stat.o buffer_mgr.o storage_mgr.o dberror.o -I.
 
+additional_test_cases_2: additional_test_cases.o buffer_mgr_stat.o buffer_mgr.o storage_mgr.o dberror.o
+	$(CC) -o additional_test_cases_2 additional_test_cases.o buffer_mgr_stat.o buffer_mgr.o storage_mgr.o dberror.o -I.
+
 clean:
-	rm test_assign_2 test_assign2_1.o buffer_mgr.o storage_mgr.o dberror.o buffer_mgr_stat.o testbuffer.bin
+	rm test_assign_2 additional_test_cases_2 test_assign2_1.o additional_test_cases.o buffer_mgr.o storage_mgr.o dberror.o buffer_mgr_stat.o testbuffer.bin

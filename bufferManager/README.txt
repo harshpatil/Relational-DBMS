@@ -54,7 +54,7 @@ Additional error codes added in dberror.h :
 3) RC_BM_POOL_IN_USE 403
 4) RC_BM_INVALID_UNPIN 404
 5) RC_BM_TOO_MANY_CONNECTIONS 405
-5)
+6) RC_BM_UNSUPPORTED_PAGE_STRATEGY 406
 
 ==========================================================================================================================================
                                                  # Additional files #
@@ -66,7 +66,7 @@ Additional error codes added in dberror.h :
                                                  # Additional Test Cases #
 ==========================================================================================================================================
 
-
+1) TEST_CLOCK : Testing clock page replacement strategy.
 
 ==========================================================================================================================================
                                                  # Problem Solution #
@@ -165,6 +165,17 @@ Note : The frame number of a node is not dependent on the position of the node i
              5) Else it will check for a frame to replace. It will navigate from the tail and keep iterating till it finds a frame which has a fix count of zero.
                 It will then write the contents of this frame back to disk if it is dirty, and read the contents of the page to be returned from the disk. It will
                 then increment the fix count.
+
+             CLOCK :
+              1) It checks if the page is existing in the buffer pool.
+              2) If yes, it returns this frame increasing the pin count. And sets the reference bit of this node to 1 and marks this node as reference node.
+              3) Else it will check if there is an empty frame in the pool which can be used.
+              4) If yes, it will use that frame node, read data from disk into that frame. Increment the fix count. Mark the node as reference node and set reference bit to 1.
+              5) Else it will check for a frame to replace. It will navigate from the referenceNode and keep iterating till it finds a frame which has a fix count of zero and reference bit of zero.
+                 In the way it marks all other reference bit to 0.
+                 When it finds the replacement node, It will  write the contents of this frame back to disk if it is dirty, and read the contents of the page to be returned from the disk. It will
+                 then increment the fix count. And mark this as reference node and set it's reference bit to 1.
+
 
 8) getFrameContents : Returns an array of PageNumbers (of size numPages) where the ith element is the number of the page stored in the ith page frame.
                       An empty page frame is represented using the constant NO_PAGE.

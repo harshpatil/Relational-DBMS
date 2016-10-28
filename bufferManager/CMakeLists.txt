@@ -14,6 +14,7 @@ set(SOURCE_FILES
     storage_mgr.c
     storage_mgr.h
     test_assign2_1.c
-    test_helper.h)
+    test_helper.h
+    additional_test_cases.c)
 
 add_executable(bufferManager ${SOURCE_FILES})

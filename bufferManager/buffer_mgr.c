@@ -47,7 +47,7 @@ do{ \
 
 /* FrameNode stores data of one page (frame) of buffer pool*/
 typedef struct FrameNode{
-
+    int referenceBit; //Reference bit for CLOCK.
     int pageNumber; //pagenumber stored at this frame
     int frameNumber; //frameNumber in the buffer pool.
     bool dirty; //true if the page at this frame has been marked dirty,false otherwise.
@@ -69,6 +69,8 @@ typedef struct BufferManagerInfo{
     int pageIdToFrameIndex[MAX_PAGES]; //Array of size MAX_PAGES, at each index it stores the FRAME ID in which the corresponding page is stored.
     FrameNode *headFrameNode; //Pointer to the head frameNode.
     FrameNode *tailFrameNode; //Pointer to the tail frameNode.
+    FrameNode *referencedNode; //Referenced node for clock.
+
 }BufferManagerInfo;
 
 FrameNode *findFrameNodeByPageNum(FrameNode *pNode, PageNumber num);
@@ -81,6 +83,7 @@ FrameNode *newNode(int i){
     node->frameNumber = i;
     node->dirty = 0;
     node->fixCount = 0;
+    node->referenceBit = 0;
     node->data =  MAKE_PAGE_DATA();
     node->next = NULL;
     node->previous = NULL;
@@ -126,7 +129,7 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
     memset(bmInfo->pinCountsPerFrame,0,MAX_FRAMES*sizeof(int));
     memset(bmInfo->pageIdToFrameIndex,NO_PAGE,MAX_PAGES*sizeof(int));
 
-    bmInfo->headFrameNode = bmInfo->tailFrameNode = newNode(0);
+    bmInfo->referencedNode = bmInfo->headFrameNode = bmInfo->tailFrameNode = newNode(0);
     int i;
     for(i=1; i<numPages; i++){
         FrameNode *temp = newNode(i);
@@ -181,6 +184,7 @@ RC shutdownBufferPool(BM_BufferPool *const bm){
     }
     bufferManagerInfo->headFrameNode = NULL;
     bufferManagerInfo->tailFrameNode = NULL;
+    bufferManagerInfo->referencedNode = NULL;
     free(bufferManagerInfo);
     bm->numPages = 0;
     bm->mgmtData = NULL;
@@ -670,6 +674,81 @@ int pinPageLRU(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNum
 }
 
 /**
+ * This method pins page when the replacement strategy is CLOCK.
+ *
+ * 1) It checks if the page is existing in the buffer pool.
+ * 2) If yes, it returns this frame increasing the pin count. And sets the reference bit of this node to 1 and marks this node as reference node.
+ * 3) Else it will check if there is an empty frame in the pool which can be used.
+ * 4) If yes, it will use that frame node, read data from disk into that frame. Increment the fix count. Mark the node as reference node and set reference bit to 1.
+ * 5) Else it will check for a frame to replace. It will navigate from the referenceNode and keep iterating till it finds a frame which has a fix count of zero and reference bit of zero.
+ *    In the way it marks all other reference bit to 0.
+ *    When it finds the replacement node, It will  write the contents of this frame back to disk if it is dirty, and read the contents of the page to be returned from the disk. It will
+ *    then increment the fix count. And mark this as reference node and set it's reference bit to 1.
+ * @param bm
+ * @param page
+ * @param num
+ * @return
+ */
+int pinPageCLOCK(BM_BufferPool *const bm, BM_PageHandle *const page, const PageNumber num) {
+    FrameNode *found;
+    BufferManagerInfo *bufferManagerInfo = (BufferManagerInfo *)bm->mgmtData;
+    if((found = pageInMemory(bm, page, num)) != NULL){
+        bufferManagerInfo->referencedNode = found;
+        found->referenceBit = 1;
+        return RC_OK;
+    }
+    if((bufferManagerInfo->framesFilled) < bm->numPages){
+        found = bufferManagerInfo->headFrameNode;
+
+        while(found != NULL && found->pageNumber != NO_PAGE){
+            found = found->next;
+        }
+        bufferManagerInfo->framesFilled++;
+        RC status;
+        if((status = updateFrameContentsWithCorrectDataOnUsingEmptyFrame(bm, found, page, num)) != RC_OK){
+            return status;
+        }
+        found->referenceBit = 1;
+        bufferManagerInfo->referencedNode = found;
+        updateStats(found,bufferManagerInfo,page,num);
+
+    } else{
+        found = bufferManagerInfo->referencedNode;
+
+        /* retrieve first frame with rf = 0 and set all bits to zero along the way */
+        int frameCount=0;
+        while (found != NULL &&frameCount<(2*(bm->numPages))){
+            if(found->fixCount==0 && found->referenceBit==0){
+                found->referenceBit = 1;
+                break;
+            }else{
+                found->referenceBit = 0;
+                frameCount++;
+                if(found == bufferManagerInfo->tailFrameNode){
+                    found=bufferManagerInfo->headFrameNode;
+                }else{
+                    found = found->next;
+                }
+            }
+        }
+        if (found == NULL || frameCount == (2*(bm->numPages))){
+            return RC_BM_TOO_MANY_CONNECTIONS;
+        }else if(found->referenceBit == 1){
+            int status;
+            if((status = updateFrameContentsWithCorrectDataOnReplace(bm, found, page, num)) != RC_OK){
+                return status;
+            }
+            bufferManagerInfo->referencedNode = found;
+            found->referenceBit = 1;
+            updateStats(found,bufferManagerInfo,page,num);
+
+        }
+
+    }
+    return RC_OK;
+}
+
+/**
  * Implements FIFO and LRU logic
  * @param bm
  * @param page
@@ -687,6 +766,8 @@ RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
         status = pinPageFIFO(bm,page,pageNum);
     }else if(bm->strategy==RS_LRU){
         status = pinPageLRU(bm,page,pageNum);
+    }else if(bm->strategy==RS_CLOCK){
+        status = pinPageCLOCK(bm,page,pageNum);
     }else{
         status = RC_BM_UNSUPPORTED_PAGE_STRATEGY;
     }
