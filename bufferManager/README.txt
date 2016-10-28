@@ -84,7 +84,7 @@ pool.
 All the framenodes in a buffer pool are maintained as a doubly linked list. The buffer pool has a pointer to the head and tail node of
 this linked list.
 
-Replacement Strategy : LRU and FIFO have been implemented.
+Replacement Strategy : LRU, FIFO and CLOCK have been implemented.
 In FIFO we add the frame which gets loaded with a disk page at the head of the linked list. If the frame exists in the
 buffer pool we do not change it's position in the list. So the list is ordered based on time the frame was first used for a page.
 So whenever we need to find a replacement frame, we navigate from the tail going backwards until we find a frameNode which has a fix count of zero.
@@ -95,6 +95,15 @@ we move the node corresponding to the page to the head of the list. So the list 
 accessed node at the end of the list. So whenever we need to find a replacement frame, we navigate from the tail going backwards until
 we find a frameNode which has a fix count of zero.
 Note : The frame number of a node is not dependent on the position of the node in the linked list.
+
+In CLOCK we use a reference node per pool. Per frame node we set a reference bit. It checks if the page is existing in the buffer pool.
+If yes, it returns this frame increasing the pin count. And sets the reference bit of this node to 1 and marks this node as reference node.
+Else it will check if there is an empty frame in the pool which can be used.
+If yes, it will use that frame node, read data from disk into that frame. Increment the fix count. Mark the node as reference node and set reference bit to 1.
+Else it will check for a frame to replace. It will navigate from the referenceNode and keep iterating till it finds a frame which has a fix count of zero and reference bit of zero.
+In the way it marks all other reference bit to 0.
+When it finds the replacement node, It will  write the contents of this frame back to disk if it is dirty, and read the contents of the page to be returned from the disk. It will
+then increment the fix count. And mark this as reference node and set it's reference bit to 1.
 
 1) initBufferPool : This method initialises the buffer pool.
                     i) It checks if the input parameters passed is valid.
