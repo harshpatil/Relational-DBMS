@@ -16,15 +16,15 @@ typedef struct RMTableMgmtData
     BM_BufferPool bm;
 } RMTableMgmtData;
 
-extern RC initRecordManager (void *mgmtData){
+RC initRecordManager (void *mgmtData){
     return RC_OK;
 }
 
-extern RC shutdownRecordManager (){
+RC shutdownRecordManager (){
     return RC_OK;
 }
 
-extern RC createTable (char *name, Schema *schema){
+RC createTable (char *name, Schema *schema){
     SM_FileHandle fh;
     RC rc;
     if((rc = createPageFile(name)) != RC_OK){
@@ -81,8 +81,7 @@ extern RC createTable (char *name, Schema *schema){
     return RC_OK;
 }
 
-
-extern RC openTable (RM_TableData *rel, char *name) {
+RC openTable (RM_TableData *rel, char *name) {
     char *metadata;
     RC rc;
     int i;
@@ -139,48 +138,51 @@ extern RC openTable (RM_TableData *rel, char *name) {
     return RC_OK;
 }
 
-extern RC closeTable (RM_TableData *rel){
+RC closeTable (RM_TableData *rel){
     return RC_OK;
 }
-extern RC deleteTable (char *name){
+
+RC deleteTable (char *name){
     return RC_OK;
 }
-extern int getNumTuples (RM_TableData *rel){
+
+int getNumTuples (RM_TableData *rel){
     return 0;
 }
 
-extern RC insertRecord (RM_TableData *rel, Record *record){
+RC insertRecord (RM_TableData *rel, Record *record){
     return RC_OK;
 }
 
-extern RC deleteRecord (RM_TableData *rel, RID id){
+RC deleteRecord (RM_TableData *rel, RID id){
     return RC_OK;
 }
 
-extern RC updateRecord (RM_TableData *rel, Record *record){
+RC updateRecord (RM_TableData *rel, Record *record){
     return RC_OK;
 }
 
-extern RC getRecord (RM_TableData *rel, RID id, Record *record){
+RC getRecord (RM_TableData *rel, RID id, Record *record){
     return RC_OK;
 }
 
-extern RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond){
-    return RC_OK;
-}
-extern RC next (RM_ScanHandle *scan, Record *record){
+RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond){
     return RC_OK;
 }
 
-extern RC closeScan (RM_ScanHandle *scan){
+RC next (RM_ScanHandle *scan, Record *record){
     return RC_OK;
 }
 
-extern int getRecordSize (Schema *schema){
+RC closeScan (RM_ScanHandle *scan){
+    return RC_OK;
+}
+
+int getRecordSize (Schema *schema){
     return 0;
 }
 
-extern Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *typeLength, int keySize, int *keys){
+Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *typeLength, int keySize, int *keys){
     Schema *schema = malloc(sizeof(Schema));
     schema->numAttr = numAttr;
     schema->attrNames = attrNames;
@@ -191,23 +193,23 @@ extern Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes,
     return schema;
 }
 
-extern RC freeSchema (Schema *schema){
+RC freeSchema (Schema *schema){
     return RC_OK;
 }
 
-extern RC createRecord (Record **record, Schema *schema){
+RC createRecord (Record **record, Schema *schema){
     return RC_OK;
 }
 
-extern RC freeRecord (Record *record){
+RC freeRecord (Record *record){
     return RC_OK;
 }
 
-extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value){
+RC getAttr (Record *record, Schema *schema, int attrNum, Value **value){
     return RC_OK;
 }
 
-extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value){
+RC setAttr (Record *record, Schema *schema, int attrNum, Value *value){
     return RC_OK;
 }
 
