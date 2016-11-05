@@ -232,6 +232,8 @@ RC readLastBlock (SM_FileHandle *fHandle, SM_PageHandle memPage){
  * @return
  */
 RC writeBlockData(int pageNum,SM_FileHandle *fileHandle, SM_PageHandle memPage) {
+    printf(" Adress in writeBlockData : %d \n",memPage);
+
     if(fwrite(memPage, PAGE_ELEMENT_SIZE, PAGE_SIZE, fileHandle->mgmtInfo) != PAGE_SIZE*PAGE_ELEMENT_SIZE){
         return RC_WRITE_FAILED;
     }
@@ -259,6 +261,8 @@ RC writeBlockData(int pageNum,SM_FileHandle *fileHandle, SM_PageHandle memPage) 
  */
 RC writeBlock (int pageNum, SM_FileHandle *fileHandle, SM_PageHandle memPage){
     CHECK_FILE_VALIDITY(fileHandle);
+    printf(" Adress in writeBlock : %d \n",memPage);
+
     if(pageNum > fileHandle -> totalNumPages || pageNum < 0){
         return RC_WRITE_NON_EXISTING_PAGE;
     }

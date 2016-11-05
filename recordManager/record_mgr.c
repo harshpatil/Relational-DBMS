@@ -12,6 +12,7 @@ typedef struct RMTableMgmtData
 {
     int noOfTuples;
     int firstFreePageNumber;
+    int recordSize;
     BM_PageHandle ph;
     BM_BufferPool bm;
 } RMTableMgmtData;
@@ -34,16 +35,18 @@ extern RC createTable (char *name, Schema *schema){
         return rc;
     }
     int i;
-    char *metaData = calloc(PAGE_SIZE, PAGE_ELEMENT_SIZE);
-    strcpy(metaData,"1\n");
+    char data[PAGE_SIZE];
+    char *metaData = data;
+    memset(metaData, 0, PAGE_SIZE);
+
 
     *(int*)metaData = 0; // Number of tuples
     metaData+= sizeof(int); //increment char pointer
 
-    for (i=0; i < PAGE_SIZE; i++)
-        printf("File contents : %s \n",metaData[i]);
-
     *(int*)metaData = 1; // First free page is 1 because page 0 is reserved for metadata
+    metaData += sizeof(int); //increment char pointer
+
+    *(int*)metaData = getRecordSize(schema);
     metaData += sizeof(int); //increment char pointer
 
     *(int*)metaData = schema->numAttr; //set num of attributes
@@ -67,13 +70,9 @@ extern RC createTable (char *name, Schema *schema){
         metaData += sizeof(int);
     }
 
-    if((rc=writeBlock(0, &fh, metaData))!=RC_OK){ // Write all meta data info To 0th page of file
+    if((rc=writeBlock(1, &fh, data))!=RC_OK){ // Write all meta data info To 0th page of file
         return rc;
     }
-    SM_PageHandle ph = (SM_PageHandle) malloc(PAGE_SIZE);
-    readBlock(0,&fh,ph);
-    for (i=0; i < PAGE_SIZE; i++)
-        printf("File contents : %s \n",metaData);
 
     if((rc=closePageFile(&fh))!=RC_OK){
         return rc;
@@ -83,7 +82,7 @@ extern RC createTable (char *name, Schema *schema){
 
 
 extern RC openTable (RM_TableData *rel, char *name) {
-    char *metadata;
+    SM_PageHandle  metadata;
     RC rc;
     int i;
     Schema *schema = (Schema *) malloc(sizeof(Schema));
@@ -95,13 +94,15 @@ extern RC openTable (RM_TableData *rel, char *name) {
     if ((rc = initBufferPool(&tableMgmtData->bm, name, 10, RS_LRU, NULL)) != RC_OK) {
         return rc;
     }
-    if ((rc = pinPage(&tableMgmtData->bm, &tableMgmtData->ph, 0)) != RC_OK) { // pinning the 0th page which has meta data
+    if ((rc = pinPage(&tableMgmtData->bm, &tableMgmtData->ph, 1)) != RC_OK) { // pinning the 0th page which has meta data
        return rc;
     }
     metadata = (char*) tableMgmtData->ph.data;
     tableMgmtData->noOfTuples= *(int*)metadata;
     metadata+= sizeof(int);
     tableMgmtData->firstFreePageNumber= *(int*)metadata;
+    metadata+= sizeof(int);
+    tableMgmtData->recordSize=*(int *)metadata;
     metadata+= sizeof(int);
     schema->numAttr = *(int*)metadata;
     metadata+= sizeof(int);
@@ -177,9 +178,27 @@ extern RC closeScan (RM_ScanHandle *scan){
 }
 
 extern int getRecordSize (Schema *schema){
-    return 0;
+    int size = 0, i;
+    for(i=0; i<schema->numAttr; ++i){
+        switch (schema->dataTypes[i]){
+            case DT_STRING:
+                size += schema->typeLength[i];
+                break;
+            case DT_INT:
+                size += sizeof(int);
+                break;
+            case DT_FLOAT:
+                size += sizeof(float);
+                break;
+            case DT_BOOL:
+                size += sizeof(bool);
+                break;
+            default:
+                break;
+        }
+    }
+    return size;
 }
-
 extern Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *typeLength, int keySize, int *keys){
     Schema *schema = malloc(sizeof(Schema));
     schema->numAttr = numAttr;
