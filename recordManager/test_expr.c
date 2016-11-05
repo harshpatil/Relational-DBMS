@@ -33,17 +33,17 @@ static void testExpressions (void);
 char *testName;
 
 // main method
-int 
-main (void) 
-{
-  testName = "";
-
-  testValueSerialize();
-  testOperators();
-  testExpressions();
-
-  return 0;
-}
+//int
+//main (void)
+//{
+//  testName = "";
+//
+//  testValueSerialize();
+//  testOperators();
+//  testExpressions();
+//
+//  return 0;
+//}
 
 // ************************************************************ 
 void

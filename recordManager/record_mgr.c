@@ -17,15 +17,15 @@ typedef struct RMTableMgmtData
     BM_BufferPool bm;
 } RMTableMgmtData;
 
-extern RC initRecordManager (void *mgmtData){
+RC initRecordManager (void *mgmtData){
     return RC_OK;
 }
 
-extern RC shutdownRecordManager (){
+RC shutdownRecordManager (){
     return RC_OK;
 }
 
-extern RC createTable (char *name, Schema *schema){
+RC createTable (char *name, Schema *schema){
     SM_FileHandle fh;
     RC rc;
     if((rc = createPageFile(name)) != RC_OK){
@@ -43,7 +43,7 @@ extern RC createTable (char *name, Schema *schema){
     *(int*)metaData = 0; // Number of tuples
     metaData+= sizeof(int); //increment char pointer
 
-    *(int*)metaData = 1; // First free page is 1 because page 0 is reserved for metadata
+    *(int*)metaData = 2; // First free page is 1 because page 0 is reserved for metadata
     metaData += sizeof(int); //increment char pointer
 
     *(int*)metaData = getRecordSize(schema);
@@ -81,7 +81,7 @@ extern RC createTable (char *name, Schema *schema){
 }
 
 
-extern RC openTable (RM_TableData *rel, char *name) {
+RC openTable (RM_TableData *rel, char *name) {
     SM_PageHandle  metadata;
     RC rc;
     int i;
@@ -140,40 +140,43 @@ extern RC openTable (RM_TableData *rel, char *name) {
     return RC_OK;
 }
 
-extern RC closeTable (RM_TableData *rel){
+RC closeTable (RM_TableData *rel){
     return RC_OK;
 }
-extern RC deleteTable (char *name){
+
+RC deleteTable (char *name){
     return RC_OK;
 }
-extern int getNumTuples (RM_TableData *rel){
+
+int getNumTuples (RM_TableData *rel){
     return 0;
 }
 
-extern RC insertRecord (RM_TableData *rel, Record *record){
+RC insertRecord (RM_TableData *rel, Record *record){
     return RC_OK;
 }
 
-extern RC deleteRecord (RM_TableData *rel, RID id){
+RC deleteRecord (RM_TableData *rel, RID id){
     return RC_OK;
 }
 
-extern RC updateRecord (RM_TableData *rel, Record *record){
+RC updateRecord (RM_TableData *rel, Record *record){
     return RC_OK;
 }
 
-extern RC getRecord (RM_TableData *rel, RID id, Record *record){
+RC getRecord (RM_TableData *rel, RID id, Record *record){
     return RC_OK;
 }
 
-extern RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond){
-    return RC_OK;
-}
-extern RC next (RM_ScanHandle *scan, Record *record){
+RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond){
     return RC_OK;
 }
 
-extern RC closeScan (RM_ScanHandle *scan){
+RC next (RM_ScanHandle *scan, Record *record){
+    return RC_OK;
+}
+
+RC closeScan (RM_ScanHandle *scan){
     return RC_OK;
 }
 
@@ -199,7 +202,8 @@ extern int getRecordSize (Schema *schema){
     }
     return size;
 }
-extern Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *typeLength, int keySize, int *keys){
+
+Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *typeLength, int keySize, int *keys){
     Schema *schema = malloc(sizeof(Schema));
     schema->numAttr = numAttr;
     schema->attrNames = attrNames;
@@ -210,23 +214,40 @@ extern Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes,
     return schema;
 }
 
-extern RC freeSchema (Schema *schema){
+RC freeSchema (Schema *schema){
     return RC_OK;
 }
 
-extern RC createRecord (Record **record, Schema *schema){
+RC createRecord (Record **record, Schema *schema){
+
+    int recordSize = getRecordSize(schema);
+    Record *newRecord = (Record*) malloc(sizeof(Record) );
+
+    newRecord->data= (char*) malloc(recordSize); // Allocate memory for data of record
+    char *temp = newRecord->data; // set char pointer to data of record
+    *temp = '0'; // set tombstone '0' because record is still empty
+
+    temp = temp + sizeof(char);
+    *temp = '\0'; // set null value to record after tombstone
+
+    newRecord->id.page= -1; // page number is not fixed for empty record which is in memory
+    newRecord->id.slot= -1; // slot number is not fixed for empty record which is in memory
+
+    *record = newRecord; // set tempRecord to Record
     return RC_OK;
 }
 
-extern RC freeRecord (Record *record){
+RC freeRecord (Record *record){
+
+    free(record);
     return RC_OK;
 }
 
-extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value){
+RC getAttr (Record *record, Schema *schema, int attrNum, Value **value){
     return RC_OK;
 }
 
-extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value){
+RC setAttr (Record *record, Schema *schema, int attrNum, Value *value){
     return RC_OK;
 }
 
