@@ -198,10 +198,27 @@ RC freeSchema (Schema *schema){
 }
 
 RC createRecord (Record **record, Schema *schema){
+
+    int recordSize = getRecordSize(schema);
+    Record *newRecord = (Record*) malloc(sizeof(Record) );
+
+    newRecord->data= (char*) malloc(recordSize); // Allocate memory for data of record
+    char *temp = newRecord->data; // set char pointer to data of record
+    *temp = '0'; // set tombstone '0' because record is still empty
+
+    temp = temp + sizeof(char);
+    *temp = '\0'; // set null value to record after tombstone
+
+    newRecord->id.page= -1; // page number is not fixed for empty record which is in memory
+    newRecord->id.slot= -1; // slot number is not fixed for empty record which is in memory
+
+    *record = newRecord; // set tempRecord to Record
     return RC_OK;
 }
 
 RC freeRecord (Record *record){
+
+    free(record);
     return RC_OK;
 }
 
