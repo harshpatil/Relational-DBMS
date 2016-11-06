@@ -141,15 +141,28 @@ RC openTable (RM_TableData *rel, char *name) {
 }
 
 RC closeTable (RM_TableData *rel){
+    RC rc;
+    RMTableMgmtData* rmTableMgmtData;
+    rmTableMgmtData = rel->mgmtData;
+    if((rc=shutdownBufferPool(&rmTableMgmtData->bm)) != RC_OK){
+        return rc;
+    }
+    rel->mgmtData = NULL;
     return RC_OK;
 }
 
 RC deleteTable (char *name){
+    RC rc;
+    if((rc = destroyPageFile(name)) != RC_OK){
+        return rc;
+    }
     return RC_OK;
 }
 
 int getNumTuples (RM_TableData *rel){
-    return 0;
+    RMTableMgmtData *rmTableMgmtData;
+    rmTableMgmtData = rel->mgmtData;
+    return rmTableMgmtData->noOfTuples;
 }
 
 RC insertRecord (RM_TableData *rel, Record *record){
