@@ -228,6 +228,7 @@ Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *t
 }
 
 RC freeSchema (Schema *schema){
+    free(schema);
     return RC_OK;
 }
 
