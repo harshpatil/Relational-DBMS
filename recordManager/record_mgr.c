@@ -146,7 +146,6 @@ RC closeTable (RM_TableData *rel){
     RMTableMgmtData* rmTableMgmtData;
     SM_FileHandle *fileHandle;
     rmTableMgmtData = rel->mgmtData;
-    writeBlock(1, &fileHandle, );
     if((rc=shutdownBufferPool(&rmTableMgmtData->bufferPool)) != RC_OK){
         return rc;
     }
