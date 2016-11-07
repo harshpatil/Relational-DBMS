@@ -9,14 +9,24 @@
 #include <stdlib.h>
 #include <tgmath.h>
 
-typedef struct RMTableMgmtData
-{
+typedef struct RMTableMgmtData {
+
     int noOfTuples;
     int firstFreePageNumber;
     int recordSize;
     BM_PageHandle pageHandle;
     BM_BufferPool bufferPool;
 } RMTableMgmtData;
+
+typedef struct RMScanMgmtData {
+
+    BM_PageHandle ph;
+    RID rid; // current row that is being scanned
+    int count; // no. of tuples scanned till now
+    Expr *condition; // expression to be checked
+
+} RMScanMgmtData;
+
 
 RC initRecordManager (void *mgmtData){
     return RC_OK;
@@ -238,6 +248,7 @@ RC deleteRecord (RM_TableData *rel, RID id){
 }
 
 RC updateRecord (RM_TableData *rel, Record *record){
+
     RMTableMgmtData *rmTableMgmtData = rel->mgmtData;
     pinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle, record->id.page);
     char * data = rmTableMgmtData->pageHandle.data;
@@ -260,6 +271,7 @@ RC updateRecord (RM_TableData *rel, Record *record){
 }
 
 RC getRecord (RM_TableData *rel, RID id, Record *record){
+
     RC rc;
     RMTableMgmtData *rmTableMgmtData = rel->mgmtData;
     if((rc=pinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle, id.page)) != RC_OK){
@@ -283,18 +295,32 @@ RC getRecord (RM_TableData *rel, RID id, Record *record){
 }
 
 RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond){
+
+    scan->rel = rel;
+
+    RMScanMgmtData *rmScanMgmtData = (RMScanMgmtData*) malloc( sizeof(RMScanMgmtData));
+    rmScanMgmtData->rid.page= 2;
+    rmScanMgmtData->rid.slot= 0;
+    rmScanMgmtData->count= 0;
+    rmScanMgmtData->condition = cond;
+
+    scan->mgmtData = rmScanMgmtData;
+
     return RC_OK;
 }
 
 RC next (RM_ScanHandle *scan, Record *record){
+
     return RC_OK;
 }
 
 RC closeScan (RM_ScanHandle *scan){
+
+    free(scan);
     return RC_OK;
 }
 
-extern int getRecordSize (Schema *schema){
+int getRecordSize (Schema *schema){
 
     int size = 0, i;
     for(i=0; i<schema->numAttr; ++i){
