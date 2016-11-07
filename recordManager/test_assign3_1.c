@@ -77,13 +77,13 @@ main (void)
 {
   testName = "";
 
-  testInsertManyRecords();
-  testRecords();
+//  testInsertManyRecords();
+//  testRecords();
   testCreateTableAndInsert();
-  testUpdateTable();
-  testScans();
-  testScansTwo();
-  testMultipleScans();
+//  testUpdateTable();
+//  testScans();
+//  testScansTwo();
+//  testMultipleScans();
 
   return 0;
 }
@@ -363,12 +363,12 @@ testInsertManyRecords(void)
     {9, "iiii", 2},
     {10, "jjjj", 5},
   };
-  TestRecord realInserts[10000];
+  TestRecord realInserts[100];
   TestRecord updates[] = {
-    {3333, "iiii", 6}
+    {33, "iiii", 6}
   };
-  int numInserts = 10000, i;
-  int randomRec = 3333;
+  int numInserts = 100, i;
+  int randomRec = 33;
   Record *r;
   RID *rids;
   Schema *schema;

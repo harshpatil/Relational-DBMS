@@ -260,6 +260,7 @@ RC writeBlockData(int pageNum,SM_FileHandle *fileHandle, SM_PageHandle memPage) 
  * @return
  */
 RC writeBlock (int pageNum, SM_FileHandle *fileHandle, SM_PageHandle memPage){
+
     CHECK_FILE_VALIDITY(fileHandle);
     printf(" Adress in writeBlock : %d \n",memPage);
 
