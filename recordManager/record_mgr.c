@@ -173,7 +173,8 @@ RC insertRecord (RM_TableData *rel, Record *record){
     RMTableMgmtData *rmTableMgmtData;
     char *data, *slotAddress;
     rmTableMgmtData = rel->mgmtData;
-    RID *rid = &record->id;	// set rid from current Record
+    int recordSize = rmTableMgmtData->recordSize + 1;
+    RID *rid = &record->id;
     rid->page = rmTableMgmtData->firstFreePageNumber;
     rid->slot = -1;
 
@@ -181,9 +182,9 @@ RC insertRecord (RM_TableData *rel, Record *record){
     data = rmTableMgmtData->pageHandle.data;
 
     int i;
-    int totalSlots = floor(PAGE_SIZE/rmTableMgmtData->recordSize);
+    int totalSlots = floor(PAGE_SIZE/recordSize);
     for (i = 0; i < totalSlots; i++) {
-        if (data[i * rmTableMgmtData->recordSize] != '#'){
+        if (data[i * recordSize] != '#'){
             rid->slot = i;
             break;
         }
@@ -195,7 +196,7 @@ RC insertRecord (RM_TableData *rel, Record *record){
         rid->page++;	// increment page number
         pinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle, rid->page);
         for (i = 0; i < totalSlots; i++) {
-            if (data[i * rmTableMgmtData->recordSize] != '#'){
+            if (data[i * recordSize] != '#'){
                 rid->slot = i;
                 break;
             }
@@ -205,10 +206,10 @@ RC insertRecord (RM_TableData *rel, Record *record){
     slotAddress = data;
     markDirty(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle);
 
-    slotAddress = slotAddress + rid->slot * rmTableMgmtData->recordSize;
+    slotAddress = slotAddress + rid->slot * recordSize;
     *slotAddress = '#';
     slotAddress++;
-    memcpy(slotAddress, record->data + 1, rmTableMgmtData->recordSize - 1);
+    memcpy(slotAddress, record->data, recordSize-1);
 
     unpinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle);
     rmTableMgmtData->noOfTuples++;
@@ -217,6 +218,21 @@ RC insertRecord (RM_TableData *rel, Record *record){
 }
 
 RC deleteRecord (RM_TableData *rel, RID id){
+
+    RMTableMgmtData *rmTableMgmtData = rel->mgmtData;
+    pinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle, id.page);
+    rmTableMgmtData->noOfTuples--; //update number of tuples
+    char *slotAddress, *data;
+    data = rmTableMgmtData->pageHandle.data;
+
+    slotAddress = data;
+    slotAddress = slotAddress + id.slot * rmTableMgmtData->recordSize;
+
+    *data = '$'; // set tombstone '0' for deleted record
+
+    markDirty(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle);
+    unpinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle);
+
     return RC_OK;
 }
 
@@ -285,18 +301,12 @@ RC freeSchema (Schema *schema){
 RC createRecord (Record **record, Schema *schema){
 
     int recordSize = getRecordSize(schema);
+
     Record *newRecord = (Record*) malloc(sizeof(Record));
     newRecord->data= (char*) malloc(recordSize); // Allocate memory for data of record
 
-    char *data = newRecord->data; // set char pointer to data of record
-    *data = '0'; // set '0' because record is still empty
-
-    data = data + sizeof(char); // Move pointer by 1 byte
-    *data = '\0'; // set null value to record after tombstone
-
     newRecord->id.page= -1; // page number is not fixed for empty record which is in memory
     newRecord->id.slot= -1; // slot number is not fixed for empty record which is in memory
-
     *record = newRecord; // set tempRecord to Record
     return RC_OK;
 }
