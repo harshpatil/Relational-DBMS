@@ -227,8 +227,8 @@ RC deleteRecord (RM_TableData *rel, RID id){
 
     slotAddress = data;
     slotAddress = slotAddress + id.slot * rmTableMgmtData->recordSize;
-
-    *data = '$'; // set tombstone '0' for deleted record
+    slotAddress++;
+    *slotAddress = '$'; // set tombstone '$' for deleted record
 
     markDirty(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle);
     unpinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle);
