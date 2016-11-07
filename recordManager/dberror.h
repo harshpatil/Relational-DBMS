@@ -40,6 +40,8 @@ typedef int RC;
 #define RC_BM_TOO_MANY_CONNECTIONS 405
 #define RC_BM_UNSUPPORTED_PAGE_STRATEGY 406
 
+#define RC_TUPLE_WIT_RID_ON_EXISTING 501
+
 /* holder for error messages */
 extern char *RC_message;
 

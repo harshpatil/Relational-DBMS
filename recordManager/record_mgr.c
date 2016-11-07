@@ -226,10 +226,47 @@ RC deleteRecord (RM_TableData *rel, RID id){
 }
 
 RC updateRecord (RM_TableData *rel, Record *record){
+    RMTableMgmtData *rmTableMgmtData = rel->mgmtData;
+    pinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle, record->id.page);
+    char * data = rmTableMgmtData->pageHandle.data;
+    RID id = record->id;
+    RC rc;
+
+    int recordSize = rmTableMgmtData+1;
+    data = data + id.slot * recordSize + 1;
+
+    memcpy(data,record->data,recordSize - 1);
+
+    if((rc = markDirty(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle)) != RC_OK){
+        return rc;
+    }
+
+    if((rc = unpinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle)) != RC_OK){
+        return rc;
+    }
     return RC_OK;
 }
 
 RC getRecord (RM_TableData *rel, RID id, Record *record){
+    RC rc;
+    RMTableMgmtData *rmTableMgmtData = rel->mgmtData;
+    if((rc=pinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle, id.page)) != RC_OK){
+        return rc;
+    }
+    int recordSize = rmTableMgmtData->recordSize+1;
+    char * recordSlotAddress = rmTableMgmtData->pageHandle.data;
+    recordSlotAddress = recordSlotAddress + id.slot*recordSize;
+    if(*recordSlotAddress != '#')
+        return RC_TUPLE_WIT_RID_ON_EXISTING;
+    else{
+        char *target = record->data;
+        memcpy(target,recordSlotAddress,recordSize-1);
+        record->id = id;
+
+    }
+    if((rc=unpinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle)) != RC_OK){
+        return rc;
+    }
     return RC_OK;
 }
 
