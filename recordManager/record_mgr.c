@@ -197,6 +197,7 @@ RC insertRecord (RM_TableData *rel, Record *record){
         pinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle, rid->page);
         for (i = 0; i < totalSlots; i++) {
             if (data[i * recordSize] != '#'){
+                rmTableMgmtData->firstFreePageNumber = rid->page;
                 rid->slot = i;
                 break;
             }
@@ -213,7 +214,7 @@ RC insertRecord (RM_TableData *rel, Record *record){
 
     unpinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle);
     rmTableMgmtData->noOfTuples++;
-
+    record->id = *rid;
     return RC_OK;
 }
 
