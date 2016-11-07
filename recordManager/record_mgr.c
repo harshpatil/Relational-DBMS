@@ -255,7 +255,7 @@ RC updateRecord (RM_TableData *rel, Record *record){
     RID id = record->id;
     RC rc;
 
-    int recordSize = rmTableMgmtData+1;
+    int recordSize = rmTableMgmtData->recordSize+1;
     data = data + id.slot * recordSize + 1;
 
     memcpy(data,record->data,recordSize - 1);
@@ -279,12 +279,12 @@ RC getRecord (RM_TableData *rel, RID id, Record *record){
     }
     int recordSize = rmTableMgmtData->recordSize+1;
     char * recordSlotAddress = rmTableMgmtData->pageHandle.data;
-    recordSlotAddress = recordSlotAddress + id.slot*recordSize;
+    recordSlotAddress = recordSlotAddress + (id.slot*recordSize);
     if(*recordSlotAddress != '#')
         return RC_TUPLE_WIT_RID_ON_EXISTING;
     else{
         char *target = record->data;
-        memcpy(target,recordSlotAddress,recordSize-1);
+        memcpy(target,recordSlotAddress+1,recordSize-1);
         record->id = id;
 
     }
@@ -381,11 +381,96 @@ RC freeRecord (Record *record){
     return RC_OK;
 }
 
+RC determineAttributOffsetInRecord (Schema *schema, int attrNum, int *result)
+{
+    int offset = 0;
+    int attrPos = 0;
+
+    for(attrPos = 0; attrPos < attrNum; attrPos++) {
+        switch (schema->dataTypes[attrPos])
+        {
+            case DT_STRING:
+                offset = offset + schema->typeLength[attrPos];
+                break;
+            case DT_INT:
+                offset = offset + sizeof(int);
+                break;
+            case DT_FLOAT:
+                offset = offset + sizeof(float);
+                break;
+            case DT_BOOL:
+                offset = offset + sizeof(bool);
+                break;
+        }
+    }
+    *result = offset;
+    return RC_OK;
+}
+
+
 RC getAttr (Record *record, Schema *schema, int attrNum, Value **value){
+
+    int offset = 0;
+    determineAttributOffsetInRecord(schema, attrNum, &offset);
+    Value *tempValue = (Value*) malloc(sizeof(Value));
+    char *string = record->data;
+    string += offset;
+    switch(schema->dataTypes[attrNum])
+    {
+        case DT_INT:
+            memcpy(&(tempValue->v.intV) ,string, sizeof(int));
+            tempValue->dt = DT_INT;
+            break;
+        case DT_STRING:
+            tempValue->dt = DT_STRING;
+            int len = schema->typeLength[attrNum];
+            tempValue->v.stringV = (char *) malloc(len + 1);
+            strncpy(tempValue->v.stringV, string, len);
+            tempValue->v.stringV[len] = '\0';
+            break;
+        case DT_FLOAT:
+            tempValue->dt = DT_FLOAT;
+            memcpy(&(tempValue->v.floatV),string, sizeof(float));
+            break;
+        case DT_BOOL:
+            tempValue->dt = DT_BOOL;
+            memcpy(&(tempValue->v.boolV),string, sizeof(bool));
+            break;
+    }
+    *value = tempValue;
     return RC_OK;
 }
 
 RC setAttr (Record *record, Schema *schema, int attrNum, Value *value){
+    int offset = 0;
+    determineAttributOffsetInRecord(schema, attrNum, &offset);
+    char *data = record->data;
+    data = data + offset;
+
+    switch(schema->dataTypes[attrNum])
+    {
+        case DT_INT:
+            *(int *)data = value->v.intV;
+            break;
+        case DT_STRING:
+        {
+            char *buf;
+            int len = schema->typeLength[attrNum];
+            buf = (char *) malloc(len + 1);
+            strncpy(buf, value->v.stringV, len);
+            buf[len] = '\0';
+            strncpy(data, buf, len);
+            free(buf);
+        }
+            break;
+        case DT_FLOAT:
+            *(float *)data = value->v.floatV;
+            break;
+        case DT_BOOL:
+            *(bool *)data = value->v.boolV;
+            break;
+    }
+
     return RC_OK;
 }
 
