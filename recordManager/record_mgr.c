@@ -171,11 +171,8 @@ int getNumTuples (RM_TableData *rel){
 RC insertRecord (RM_TableData *rel, Record *record){
 
     RMTableMgmtData *rmTableMgmtData;
-    rmTableMgmtData = rel->mgmtData;
-
     char *data, *slotAddress;
-    int recordSize = getRecordSize(rel->schema);	// record size of particular Record
-
+    rmTableMgmtData = rel->mgmtData;
     RID *rid = &record->id;	// set rid from current Record
     rid->page = rmTableMgmtData->firstFreePageNumber;
     rid->slot = -1;
@@ -184,10 +181,9 @@ RC insertRecord (RM_TableData *rel, Record *record){
     data = rmTableMgmtData->pageHandle.data;
 
     int i;
-    int totalSlots = floor(PAGE_SIZE/recordSize);
+    int totalSlots = floor(PAGE_SIZE/rmTableMgmtData->recordSize);
     for (i = 0; i < totalSlots; i++) {
-        if (data[i * recordSize] != '#'){
-            printf("data[ slot num : %d] contains: %c  \n\n", i, data[i * recordSize]);
+        if (data[i * rmTableMgmtData->recordSize] != '#'){
             rid->slot = i;
             break;
         }
@@ -199,8 +195,7 @@ RC insertRecord (RM_TableData *rel, Record *record){
         rid->page++;	// increment page number
         pinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle, rid->page);
         for (i = 0; i < totalSlots; i++) {
-            if (data[i * recordSize] != '#'){
-                printf("data[ slot num : %d] contains: %c  \n\n", i, data[i * recordSize]);
+            if (data[i * rmTableMgmtData->recordSize] != '#'){
                 rid->slot = i;
                 break;
             }
@@ -210,10 +205,10 @@ RC insertRecord (RM_TableData *rel, Record *record){
     slotAddress = data;
     markDirty(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle);
 
-    slotAddress = slotAddress + rid->slot * recordSize;
+    slotAddress = slotAddress + rid->slot * rmTableMgmtData->recordSize;
     *slotAddress = '#';
     slotAddress++;
-    memcpy(slotAddress, record->data + 1, recordSize - 1);
+    memcpy(slotAddress, record->data + 1, rmTableMgmtData->recordSize - 1);
 
     unpinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle);
     rmTableMgmtData->noOfTuples++;
