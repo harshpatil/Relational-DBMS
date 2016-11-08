@@ -35,4 +35,4 @@ test_expr: test_expr.o buffer_mgr_stat.o buffer_mgr.o storage_mgr.o dberror.o re
 	$(CC) -o test_expr test_expr.o buffer_mgr_stat.o buffer_mgr.o storage_mgr.o dberror.o record_mgr.o expr.o rm_serializer.o -I. -lm
 
 clean:
-	rm test_assign_3 test_expr test_expr.o test_assign3_1.o rm_serializer.o expr.o record_mgr.o buffer_mgr.o storage_mgr.o dberror.o buffer_mgr_stat.o
+	rm test_assign_3 test_expr test_expr.o test_assign3_1.o rm_serializer.o expr.o record_mgr.o buffer_mgr.o storage_mgr.o dberror.o buffer_mgr_stat.o test_table_r test_table_t
