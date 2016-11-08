@@ -163,13 +163,7 @@ RC closeTable (RM_TableData *rel){
     char * metaData = rmTableMgmtData->pageHandle.data;
     *(int*)metaData = rmTableMgmtData->noOfTuples;
 
-    if((rc = openPageFile(rel->name,&fileHandle)) != RC_OK){
-        return rc;
-    }
-
-    if((rc=writeBlock(1, &fileHandle, rmTableMgmtData->pageHandle.data))!=RC_OK){
-        return rc;
-    }
+    markDirty(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle);
 
     if ((rc = unpinPage(&rmTableMgmtData->bufferPool, &rmTableMgmtData->pageHandle)) != RC_OK) {
         return rc;
@@ -329,13 +323,11 @@ RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond){
 
 RC next (RM_ScanHandle *scan, Record *record){
 
-    RMScanMgmtData *scanMgmt;
-    scanMgmt = (RMScanMgmtData*) scan->mgmtData;
+    RMScanMgmtData *scanMgmtData = (RMScanMgmtData*) scan->mgmtData;
     RMTableMgmtData *tmt;
-    tmt = (RMTableMgmtData*) scan->rel->mgmtData;	//tableMgmt;
+    tmt = (RMTableMgmtData*) scan->rel->mgmtData;
 
     Value *result = (Value *) malloc(sizeof(Value));
-
     static char *data;
 
     int recordSize = tmt->recordSize+1;
@@ -345,54 +337,51 @@ RC next (RM_ScanHandle *scan, Record *record){
         return RC_RM_NO_MORE_TUPLES;
 
 
-    while(scanMgmt->count <= tmt->noOfTuples ){
-        if (scanMgmt->count <= 0)
+    while(scanMgmtData->count <= tmt->noOfTuples ){
+        if (scanMgmtData->count <= 0)
         {
-            scanMgmt->rid.page = 2;
-            scanMgmt->rid.slot = 0;
+            scanMgmtData->rid.page = 2;
+            scanMgmtData->rid.slot = 0;
 
-            pinPage(&tmt->bufferPool, &scanMgmt->ph, scanMgmt->rid.page);
-            data = scanMgmt->ph.data;
-            printf(" data : %s ",data);
+            pinPage(&tmt->bufferPool, &scanMgmtData->ph, scanMgmtData->rid.page);
+            data = scanMgmtData->ph.data;
 
         }else{
-            scanMgmt->rid.slot++;
-            if(scanMgmt->rid.slot >= totalSlots){
-                scanMgmt->rid.slot = 0;
-                scanMgmt->rid.page++;
+            scanMgmtData->rid.slot++;
+            if(scanMgmtData->rid.slot >= totalSlots){
+                scanMgmtData->rid.slot = 0;
+                scanMgmtData->rid.page++;
             }
 
-            pinPage(&tmt->bufferPool, &scanMgmt->ph, scanMgmt->rid.page);
-            data = scanMgmt->ph.data;
+            pinPage(&tmt->bufferPool, &scanMgmtData->ph, scanMgmtData->rid.page);
+            data = scanMgmtData->ph.data;
         }
 
-        data = data + (scanMgmt->rid.slot * recordSize)+1;
+        data = data + (scanMgmtData->rid.slot * recordSize)+1;
 
+        record->id.page=scanMgmtData->rid.page;
+        record->id.slot=scanMgmtData->rid.slot;
+        scanMgmtData->count++;
 
-        record->id.page=scanMgmt->rid.page;
-        record->id.slot=scanMgmt->rid.slot;
-        scanMgmt->count++;
+        memcpy(record->data,data,recordSize-1);
 
-        memcpy(&record->data,data,recordSize-1);
-      //  printf(" data %s ",*record->data);
-
-        if (scanMgmt->condition != NULL){
-            evalExpr(record, (scan->rel)->schema, scanMgmt->condition, &result);
+        if (scanMgmtData->condition != NULL){
+            evalExpr(record, (scan->rel)->schema, scanMgmtData->condition, &result);
         }else{
             result->v.boolV == TRUE; // when no condition return all records
         }
 
         if(result->v.boolV == TRUE){  //result was found
-            unpinPage(&tmt->bufferPool, &scanMgmt->ph);
+            unpinPage(&tmt->bufferPool, &scanMgmtData->ph);
             return RC_OK;
         }else{
-            unpinPage(&tmt->bufferPool, &scanMgmt->ph);
+            unpinPage(&tmt->bufferPool, &scanMgmtData->ph);
         }
     }
 
-    scanMgmt->rid.page = 2; //Resetting after scan is complete
-    scanMgmt->rid.slot = 0;
-    scanMgmt->count = 0;
+    scanMgmtData->rid.page = 2; //Resetting after scan is complete
+    scanMgmtData->rid.slot = 0;
+    scanMgmtData->count = 0;
     return RC_RM_NO_MORE_TUPLES;
 }
 
