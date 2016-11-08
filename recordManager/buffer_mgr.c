@@ -62,7 +62,7 @@ typedef struct FrameNode{
 typedef struct BufferManagerInfo{
     int numOfDiskReads; //Number of disk read operations happened for this buffer pool.
     int numOfDiskWrites; //Number of disk writes operations happened for this buffer pool.
-    int framesFilled; // Total number of frames present in pool
+    long framesFilled; // Total number of frames present in pool
     int frameToPageId[MAX_FRAMES]; //Array of size MAX_FRAMES, at each index it stores the pageId stored at that frame index.
     bool dirtyFlagPerFrame[MAX_FRAMES]; //Array of size MAX_FRAMES, at each index it stores the dirty flag corresponding to page stored at that frame index.
     int pinCountsPerFrame[MAX_FRAMES]; //Array of size MAX_FRAMES, at each index it stores the pin count corresponding to the page stored at that frame index.
