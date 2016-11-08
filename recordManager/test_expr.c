@@ -33,19 +33,19 @@ static void testExpressions (void);
 char *testName;
 
 // main method
-//int
-//main (void)
-//{
-//  testName = "";
-//
-//  testValueSerialize();
-//  testOperators();
-//  testExpressions();
-//
-//  return 0;
-//}
+int
+main (void)
+{
+  testName = "";
 
-// ************************************************************ 
+  testValueSerialize();
+  testOperators();
+  testExpressions();
+
+  return 0;
+}
+
+// ************************************************************
 void
 testValueSerialize (void)
 {
@@ -60,14 +60,14 @@ testValueSerialize (void)
   TEST_DONE();
 }
 
-// ************************************************************ 
+// ************************************************************
 void
 testOperators (void)
 {
   Value *result;
   testName = "test value comparison and boolean operators";
   MAKE_VALUE(result, DT_INT, 0);
-  
+
   // equality
   OP_TRUE(stringToValue("i10"),stringToValue("i10"), valueEquals, "10 = 10");
   OP_FALSE(stringToValue("i9"),stringToValue("i10"), valueEquals, "9 != 10");
@@ -99,11 +99,11 @@ testExpressions (void)
   Expr *op, *l, *r;
   Value *res;
   testName = "test complex expressions";
-  
+
   MAKE_CONS(l, stringToValue("i10"));
   evalExpr(NULL, NULL, l, &res);
   OP_TRUE(stringToValue("i10"), res, valueEquals, "Const 10");
- 
+
   MAKE_CONS(r, stringToValue("i20"));
   evalExpr(NULL, NULL, r, &res);
   OP_TRUE(stringToValue("i20"), res, valueEquals, "Const 20");
